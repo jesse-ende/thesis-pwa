@@ -1,0 +1,101 @@
+#!/bin/env python3
+# Created by atbswp (https://github.com/rmpr/atbswp)
+# on 22 May 2021 
+import pyautogui
+import time
+pyautogui.FAILSAFE = False
+
+pyautogui.keyDown('altleft')
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+time.sleep(0.1)
+pyautogui.keyUp('altleft')
+pyautogui.keyDown('f2')
+pyautogui.keyUp('f2')
+pyautogui.keyDown('ctrlleft')
+pyautogui.keyDown('c')
+pyautogui.keyUp('c')
+pyautogui.keyUp('ctrlleft')
+pyautogui.keyDown('altleft')
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+time.sleep(0.1)
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+pyautogui.keyUp('altleft')
+pyautogui.keyDown('ctrlleft')
+pyautogui.keyDown('l')
+pyautogui.keyUp('l')
+pyautogui.keyDown('v')
+pyautogui.keyUp('v')
+pyautogui.keyUp('ctrlleft')
+pyautogui.keyDown('enter')
+pyautogui.keyUp('enter')
+
+# time.sleep(3)
+
+load_time = time.time()
+while True:
+    if pyautogui.pixelMatchesColor(87, 107, (255, 255, 255)) or time.time() - load_time >= 3:
+        print("laadtijd", time.time() - load_time)
+        break
+    # wit
+
+pyautogui.keyDown('ctrlleft')
+pyautogui.keyDown('shift_left')
+pyautogui.keyDown('I')
+pyautogui.keyUp('I')
+pyautogui.keyUp('shift_left')
+pyautogui.keyUp('ctrlleft')
+time.sleep(4)
+start_loading_page = time.time()
+pyautogui.mouseDown(807, 66, 'left')
+pyautogui.mouseUp(807, 66, 'left')
+time.sleep(1)
+
+while True:
+    # wit
+    if pyautogui.pixelMatchesColor(103, 239, (255, 255, 255)):
+        print("klik beautify tijd", time.time() - start_loading_page)
+        pyautogui.mouseDown(103, 239, 'left')
+        pyautogui.mouseUp(103, 239, 'left')
+        break
+
+pyautogui.mouseDown(1737, 140, 'left')
+pyautogui.mouseUp(1737, 140, 'left')
+
+# pyautogui.mouseDown(1361, 453, 'left')
+# pyautogui.mouseUp(1361, 453, 'left')
+# time.sleep(7)
+
+start_downloading_page = time.time()
+while True:
+#   blauw
+# rgba(24,91,211,255)
+    if pyautogui.pixelMatchesColor(1736, 135, (24, 91, 211)):
+        print("download tijd", time.time() - start_downloading_page)
+        break
+
+# pyautogui.mouseDown(1304, 446, 'left')
+# pyautogui.mouseUp(1304, 446, 'left')
+# time.sleep(6)
+
+pyautogui.keyDown('ctrlleft')
+pyautogui.keyDown('w')
+pyautogui.keyUp('w')
+pyautogui.keyUp('ctrlleft')
+pyautogui.keyDown('altleft')
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+pyautogui.keyUp('altleft')
+# time.sleep(3)
+pyautogui.keyDown('esc')
+pyautogui.keyUp('esc')
+pyautogui.keyDown('down')
+pyautogui.keyUp('down')
+pyautogui.keyDown('altleft')
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+pyautogui.keyDown('tab')
+pyautogui.keyUp('tab')
+pyautogui.keyUp('altleft')
