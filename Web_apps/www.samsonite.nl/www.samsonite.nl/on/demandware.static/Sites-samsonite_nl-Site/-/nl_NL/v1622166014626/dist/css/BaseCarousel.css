@@ -1,0 +1,321 @@
+@-webkit-keyframes fadeIn {
+    0% {
+        opacity: 0
+    }
+    to {
+        opacity: 1
+    }
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0
+    }
+    to {
+        opacity: 1
+    }
+}
+
+@-webkit-keyframes fadeOut {
+    0% {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}
+
+@-webkit-keyframes slideInFromLeft {
+    0% {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromLeft {
+    0% {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideOutToLeft {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+}
+
+@keyframes slideOutToLeft {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+}
+
+@-webkit-keyframes slideInFromRight {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromRight {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideInFromRightDelayBefore {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    50% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromRightDelayBefore {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    50% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideOutToRight {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+}
+
+@keyframes slideOutToRight {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+}
+
+.carousel {
+    position: relative;
+    margin: auto;
+    overflow: hidden;
+    padding-bottom: 60px
+}
+
+.carousel__inner {
+    position: relative;
+    white-space: nowrap;
+    font-size: 0;
+    padding-left: 30px;
+    padding-right: 5px;
+    margin-bottom: 30px;
+    overflow: visible;
+    z-index: 1 !important
+}
+
+.carousel__slider {
+    max-width: 800px;
+    position: relative;
+    width: 60%;
+    height: 3px;
+    background: #ededed;
+    border-radius: 5px;
+    margin: 0 auto;
+    z-index: 0
+}
+
+.carousel__slider .active-slider {
+    position: absolute;
+    left: 0;
+    height: 50px;
+    top: -24px;
+    border-radius: 5px
+}
+
+.carousel__slider .active-slider:before {
+    content: "";
+    position: absolute;
+    top: 24px;
+    width: 100%;
+    height: 3px;
+    background: #000;
+    border-radius: 10px;
+    -webkit-transition: height .15s ease-in-out, top .15s ease-in-out;
+    transition: height .15s ease-in-out, top .15s ease-in-out
+}
+
+.carousel__slider .active-slider:hover:before {
+    top: 22px;
+    height: 6px
+}
+
+.carousel.showControls {
+    padding-bottom: 0
+}
+
+.carousel.showControls .carousel__inner {
+    margin-bottom: 0
+}
+
+.carousel.showControls .controls {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex
+}
+
+.carousel.noDrag .carousel__inner {
+    width: 100% !important;
+    cursor: auto !important;
+    -webkit-transform: none !important;
+    transform: none !important
+}
+
+.carousel.noDrag .carousel__slider,
+.carousel.noDrag .customCursorWrapper {
+    display: none
+}
+
+.carousel .controls {
+    position: absolute;
+    display: none;
+    right: 30px;
+    bottom: 47px;
+    width: 105px;
+    height: 50px
+}
+
+.carousel .controls .next,
+.carousel .controls .previous {
+    display: inline-block;
+    position: relative;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 1px solid #c7c7c7;
+    background: transparent;
+    cursor: pointer
+}
+
+.carousel .controls .next:after,
+.carousel .controls .previous:after {
+    content: "";
+    background-repeat: no-repeat;
+    background-image: url(../images/icons.svg#view-icon-dropdown);
+    width: 10px;
+    height: 6px;
+    -webkit-transition: -webkit-transform .3s ease-in-out;
+    transition: -webkit-transform .3s ease-in-out;
+    transition: transform .3s ease-in-out;
+    transition: transform .3s ease-in-out, -webkit-transform .3s ease-in-out;
+    position: absolute;
+    top: 50%;
+    left: 50%
+}
+
+.carousel .controls .next.disabled,
+.carousel .controls .previous.disabled {
+    opacity: .5;
+    pointer-events: none
+}
+
+.carousel .controls .next.disabled:after,
+.carousel .controls .previous.disabled:after {
+    border-color: #c7c7c7
+}
+
+.carousel .controls .next:after {
+    -webkit-transform: translate(-50%, -50%) rotate(-90deg);
+    transform: translate(-50%, -50%) rotate(-90deg)
+}
+
+.carousel .controls .previous {
+    margin-right: 5px
+}
+
+.carousel .controls .previous:after {
+    -webkit-transform: translate(-50%, -50%) rotate(90deg);
+    transform: translate(-50%, -50%) rotate(90deg)
+}
+
+@media only screen and (min-width:768px) {
+    .carousel__inner {
+        margin-bottom: 45px;
+        padding-left: 60px;
+        padding-right: 30px
+    }
+}
+
+@media only screen and (min-width:1024px) {
+    .carousel__inner {
+        margin-bottom: 60px
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .carousel .controls {
+        right: 60px;
+        bottom: 60px;
+        width: 120px
+    }
+    .carousel .controls .previous {
+        margin-right: 15px
+    }
+}

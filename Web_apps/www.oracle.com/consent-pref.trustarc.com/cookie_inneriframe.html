@@ -1,0 +1,83 @@
+<html>
+
+<body>
+    <script type="text/javascript">
+        function getSameSiteValue() {
+            var isHttps = ((self.location.protocol == "https:") ? " Secure;" : ""); //conditionally adds Secure tag only if parent frame is HTTPS
+            var sameSiteValue = isHttps ? "None;" : "Lax;";
+            var cookieAttrb = (" SameSite=" + sameSiteValue) + isHttps;
+            return cookieAttrb;
+        }
+
+        function sameSiteCompatible(userAgent) {
+            return !hasWebKitSameSiteBug(userAgent);
+        }
+
+        function hasWebKitSameSiteBug(userAgent) {
+            return isIosVersion(12, userAgent) || (checkMacOSVersion(userAgent) && checkIfSafariBrowser(userAgent)) || checkChromeVersion(userAgent);
+        }
+
+        function isIosVersion(major, userAgent) {
+            var retVal = true;
+
+            var start = userAgent.indexOf('OS');
+            if ((userAgent.indexOf('iPhone') > -1 || userAgent.indexOf('iPad') > -1) && start > -1) {
+                var iosVersion = window.Number(userAgent.substr(start + 3, 3).replace('_', '.'));
+
+                if (iosVersion > major) {
+                    retVal = false;
+                }
+            } else {
+                retVal = false;
+            }
+
+            return retVal;
+        }
+
+        function checkMacOSVersion(userAgent) {
+            var retVal = /Mac OS X 10_14/.test(userAgent);
+            return retVal;
+        }
+
+        function checkIfSafariBrowser(userAgent) {
+            var retVal = /^((?!chrome|android).)*safari/i.test(userAgent);
+
+            return retVal;
+        }
+
+        function checkChromeVersion(userAgent) {
+            var raw = userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+
+            if (raw) {
+                var retVal = false;
+                if (raw[2] >= 51 && raw[2] <= 66) {
+                    retVal = true;
+                }
+            }
+
+            return retVal;
+        }
+
+        function createCookie(name, value, days) {
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (20000));
+                var expires = "; expires=" + date.toGMTString();
+            } else {
+                var expires = "";
+            }
+
+            var curCookie = name + "=" + value + expires + "; path=/;";
+
+            if (sameSiteCompatible(navigator.userAgent)) {
+                curCookie = curCookie + getSameSiteValue();
+            }
+
+            document.cookie = curCookie;
+        }
+
+        createCookie('token_test', new Date(), 7);
+    </script>
+</body>
+
+</html>

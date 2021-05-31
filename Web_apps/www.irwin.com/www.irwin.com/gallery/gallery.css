@@ -1,0 +1,56 @@
+@charset "UTF-8";
+/* CSS Document */
+
+#imgGal {
+    background-color: #1f2428;
+    position: relative;
+}
+
+#galSlides img {
+    border: none;
+}
+
+#galShadow {
+    width: 622px;
+    height: 32px;
+    background-image: url(//www.irwin.com/gallery/topShadow.png);
+    position: absolute;
+    top: 0px;
+    z-index: 100;
+}
+
+#galNav {
+    width: 622px;
+    height: 29px;
+    background-image: url(//www.irwin.com/gallery/navBar.png);
+    position: absolute;
+    top: 417px;
+    z-index: 10000;
+}
+
+#galNavBut {
+    position: absolute;
+    top: 7px;
+    left: 401px;
+}
+
+.galBut {
+    width: 16px;
+    height: 16px;
+    color: #000;
+    font-size: 11px;
+    text-align: center;
+    line-height: 150%;
+    vertical-align: middle;
+    background-image: url(//www.irwin.com/gallery/navButton.png);
+    background-position: bottom;
+    background-repeat: no-repeat;
+    float: left;
+    margin-right: 4px;
+    cursor: pointer;
+}
+
+#galBut1 {
+    color: #fff;
+    background-position: top;
+}

@@ -1,0 +1,606 @@
+@-webkit-keyframes fadeIn {
+    0% {
+        opacity: 0
+    }
+    to {
+        opacity: 1
+    }
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0
+    }
+    to {
+        opacity: 1
+    }
+}
+
+@-webkit-keyframes fadeOut {
+    0% {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}
+
+@-webkit-keyframes slideInFromLeft {
+    0% {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromLeft {
+    0% {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideOutToLeft {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+}
+
+@keyframes slideOutToLeft {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(-100%);
+        transform: translate(-100%)
+    }
+}
+
+@-webkit-keyframes slideInFromRight {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromRight {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideInFromRightDelayBefore {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    50% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@keyframes slideInFromRightDelayBefore {
+    0% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    50% {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+    to {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+}
+
+@-webkit-keyframes slideOutToRight {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+}
+
+@keyframes slideOutToRight {
+    0% {
+        -webkit-transform: translate(0);
+        transform: translate(0)
+    }
+    to {
+        -webkit-transform: translate(100%);
+        transform: translate(100%)
+    }
+}
+
+.mosaic-banner {
+    position: relative;
+    overflow: hidden
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner-wrapper {
+        margin: 30px 60px
+    }
+}
+
+.mosaic-banner-wrapper:after {
+    content: "";
+    display: block;
+    clear: both
+}
+
+.mosaic-banner+.mosaic-banner {
+    margin-top: 15px
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner+.mosaic-banner {
+        margin-top: 0
+    }
+}
+
+.mosaic-banner__flag {
+    position: absolute;
+    top: 0;
+    left: 5%;
+    font-size: 12px;
+    max-width: 85px;
+    color: #fff;
+    background-image: -webkit-gradient(linear, left top, left bottom, from(transparent), to(#757575));
+    background-image: linear-gradient(transparent, #757575);
+    padding: 10px;
+    text-align: center;
+    text-transform: uppercase;
+    z-index: 1
+}
+
+.mosaic-banner__flag span {
+    font-size: 14px
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner__flag {
+        font-size: 10px
+    }
+    .mosaic-banner__flag span {
+        font-size: 12px
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner__flag {
+        font-size: 12px
+    }
+    .mosaic-banner__flag span {
+        font-size: 14px
+    }
+}
+
+@media only screen and (min-width:1400px) {
+    .mosaic-banner__flag {
+        font-size: 14px
+    }
+    .mosaic-banner__flag span {
+        font-size: 16px
+    }
+}
+
+.mosaic-banner__image {
+    width: 100%;
+    height: auto
+}
+
+.mosaic-banner__content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    padding: 30px
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner__content {
+        padding: 60px
+    }
+}
+
+.mosaic-banner__content h2 {
+    font-size: 16px
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner__content h2 {
+        font-size: 40px
+    }
+}
+
+.mosaic-banner__content p:not(.btn) {
+    display: none
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner__content p:not(.btn) {
+        display: block
+    }
+}
+
+.mosaic-banner__content em[class^=hide],
+.mosaic-banner__content em[class^=show] {
+    font-style: normal
+}
+
+.mosaic-banner.small,
+.mosaic-banner.smallVideo {
+    display: none;
+    font-weight: 800;
+    font-size: 12px;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 .1em .15em rgba(0, 0, 0, .5);
+    letter-spacing: .38px
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner.small,
+    .mosaic-banner.smallVideo {
+        float: left;
+        display: block;
+        width: calc((100% - 30px)/3);
+        margin-top: 15px
+    }
+    .mosaic-banner.small+.small,
+    .mosaic-banner.small+.smallVideo,
+    .mosaic-banner.smallVideo+.small,
+    .mosaic-banner.smallVideo+.smallVideo {
+        margin-left: 15px
+    }
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner.small,
+    .mosaic-banner.smallVideo {
+        float: right;
+        width: 24%;
+        margin-top: 0
+    }
+    .mosaic-banner.small+.small,
+    .mosaic-banner.small+.smallVideo,
+    .mosaic-banner.smallVideo+.small,
+    .mosaic-banner.smallVideo+.smallVideo {
+        margin-left: 0;
+        margin-top: 2.1%
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner.small,
+    .mosaic-banner.smallVideo {
+        font-size: 14px
+    }
+}
+
+@media only screen and (min-width:1400px) {
+    .mosaic-banner.small,
+    .mosaic-banner.smallVideo {
+        font-size: 16px
+    }
+}
+
+@media only screen and (min-width:1920px) {
+    .mosaic-banner.small,
+    .mosaic-banner.smallVideo {
+        font-size: 24px
+    }
+}
+
+.mosaic-banner.small .mosaic-banner__content,
+.mosaic-banner.smallVideo .mosaic-banner__content {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: rgba(0, 0, 0, .25);
+    background: -webkit-gradient(linear, left bottom, left top, from(rgba(0, 0, 0, .25)), to(hsla(0, 0%, 100%, 0)));
+    background: linear-gradient(0deg, rgba(0, 0, 0, .25), hsla(0, 0%, 100%, 0));
+    color: #fff
+}
+
+.mosaic-banner.small .mosaic-banner__content.bottom,
+.mosaic-banner.smallVideo .mosaic-banner__content.bottom {
+    -webkit-box-pack: end;
+    -webkit-justify-content: flex-end;
+    -ms-flex-pack: end;
+    justify-content: flex-end;
+    padding-bottom: 4%
+}
+
+.mosaic-banner.small .mosaic-banner__content.top,
+.mosaic-banner.smallVideo .mosaic-banner__content.top {
+    -webkit-box-pack: start;
+    -webkit-justify-content: flex-start;
+    -ms-flex-pack: start;
+    justify-content: flex-start;
+    padding-top: 4%
+}
+
+.mosaic-banner.small .mosaic-banner__subtitle,
+.mosaic-banner.small .mosaic-banner__title,
+.mosaic-banner.smallVideo .mosaic-banner__subtitle,
+.mosaic-banner.smallVideo .mosaic-banner__title {
+    margin: 0
+}
+
+.mosaic-banner.small .mosaic-banner__subtitle,
+.mosaic-banner.smallVideo .mosaic-banner__subtitle {
+    font-weight: 400
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner.medium,
+    .mosaic-banner.mediumVideo {
+        float: left;
+        width: calc(50% - 15px)
+    }
+    .mosaic-banner.medium+.medium,
+    .mosaic-banner.medium+.mediumVideo,
+    .mosaic-banner.mediumVideo+.medium,
+    .mosaic-banner.mediumVideo+.mediumVideo {
+        float: right;
+        margin-left: 15px
+    }
+}
+
+.mosaic-banner.portrait,
+.mosaic-banner.portraitVideo {
+    display: none;
+    font-weight: 800;
+    font-size: 12px;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 .1em .15em rgba(0, 0, 0, .5);
+    letter-spacing: .38px
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner.portrait,
+    .mosaic-banner.portraitVideo {
+        display: block;
+        float: right;
+        width: 24%
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner.portrait,
+    .mosaic-banner.portraitVideo {
+        font-size: 14px
+    }
+}
+
+@media only screen and (min-width:1400px) {
+    .mosaic-banner.portrait,
+    .mosaic-banner.portraitVideo {
+        font-size: 16px
+    }
+}
+
+@media only screen and (min-width:1920px) {
+    .mosaic-banner.portrait,
+    .mosaic-banner.portraitVideo {
+        font-size: 24px
+    }
+}
+
+.mosaic-banner.portrait .mosaic-banner__content,
+.mosaic-banner.portraitVideo .mosaic-banner__content {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    color: #fff
+}
+
+.mosaic-banner.portrait .mosaic-banner__content.bottom,
+.mosaic-banner.portraitVideo .mosaic-banner__content.bottom {
+    -webkit-box-pack: end;
+    -webkit-justify-content: flex-end;
+    -ms-flex-pack: end;
+    justify-content: flex-end;
+    padding-bottom: 12%
+}
+
+.mosaic-banner.portrait .mosaic-banner__content.top,
+.mosaic-banner.portraitVideo .mosaic-banner__content.top {
+    -webkit-box-pack: start;
+    -webkit-justify-content: flex-start;
+    -ms-flex-pack: start;
+    justify-content: flex-start;
+    padding-top: 24%
+}
+
+.mosaic-banner.portrait .mosaic-banner__subtitle,
+.mosaic-banner.portrait .mosaic-banner__title,
+.mosaic-banner.portraitVideo .mosaic-banner__subtitle,
+.mosaic-banner.portraitVideo .mosaic-banner__title {
+    margin: 0
+}
+
+.mosaic-banner.portrait .mosaic-banner__subtitle,
+.mosaic-banner.portraitVideo .mosaic-banner__subtitle {
+    font-weight: 400
+}
+
+.mosaic-banner.large .mosaic-banner__flag,
+.mosaic-banner.largeVideo .mosaic-banner__flag {
+    font-size: 12px;
+    max-width: 140px;
+    color: #fff;
+    left: 30px
+}
+
+.mosaic-banner.large .mosaic-banner__flag span,
+.mosaic-banner.largeVideo .mosaic-banner__flag span {
+    font-size: 14px
+}
+
+@media only screen and (min-width:768px) {
+    .mosaic-banner.large .mosaic-banner__flag,
+    .mosaic-banner.largeVideo .mosaic-banner__flag {
+        font-size: 24px;
+        color: #fff
+    }
+    .mosaic-banner.large .mosaic-banner__flag span,
+    .mosaic-banner.largeVideo .mosaic-banner__flag span {
+        font-size: 26px
+    }
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner.large .mosaic-banner__flag,
+    .mosaic-banner.largeVideo .mosaic-banner__flag {
+        font-size: 18px;
+        color: #fff
+    }
+    .mosaic-banner.large .mosaic-banner__flag span,
+    .mosaic-banner.largeVideo .mosaic-banner__flag span {
+        font-size: 20px
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner.large .mosaic-banner__flag,
+    .mosaic-banner.largeVideo .mosaic-banner__flag {
+        font-size: 24px;
+        left: 60px
+    }
+    .mosaic-banner.large .mosaic-banner__flag span,
+    .mosaic-banner.largeVideo .mosaic-banner__flag span {
+        font-size: 26px
+    }
+}
+
+@media only screen and (min-width:1024px) {
+    .mosaic-banner.large,
+    .mosaic-banner.largeVideo {
+        float: left;
+        width: 74%
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner.large,
+    .mosaic-banner.largeVideo {
+        font-size: 30px
+    }
+}
+
+.mosaic-banner.largeVideo iframe,
+.mosaic-banner.mediumVideo iframe,
+.mosaic-banner.portraitVideo iframe,
+.mosaic-banner.smallVideo iframe {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none
+}
+
+.mosaic-banner a {
+    text-decoration: none;
+    color: inherit
+}
+
+.mosaic-banner .btn {
+    margin-bottom: 0;
+    border-color: transparent;
+    color: #fff;
+    background-color: var(--bgcolor, #000)
+}
+
+@media only screen and (max-width:480px) {
+    .mosaic-banner .btn {
+        padding: 10px 15px;
+        font-size: 10px
+    }
+}
+
+@media only screen and (min-width:1280px) {
+    .mosaic-banner .btn:hover {
+        border: 2px solid var(--bgcolor, #000);
+        color: var(--bgcolor, #000);
+        background-color: transparent
+    }
+}

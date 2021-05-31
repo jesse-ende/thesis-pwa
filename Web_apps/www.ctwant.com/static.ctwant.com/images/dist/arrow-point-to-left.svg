@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="9px" height="17px" viewBox="0 0 9 17" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 55.2 (78181) - https://sketchapp.com -->
+    <title>arrow-point-to-right</title>
+    <desc>Created with Sketch.</desc>
+    <g id="首頁" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="首頁_web_版位名稱" transform="translate(-281.000000, -616.000000)" fill="#000000" fill-rule="nonzero">
+            <g id="Group" transform="translate(264.000000, 602.000000)">
+                <g id="arrow-point-to-right" transform="translate(21.500000, 22.181818) scale(-1, 1) translate(-21.500000, -22.181818) translate(17.000000, 14.000000)">
+                    <path d="M8.67619225,8.99190233 L1.88741097,16.0277876 C1.45556248,16.475586 0.755394175,16.475586 0.323755336,16.0277876 C-0.107918445,15.5803875 -0.107918445,14.8547477 0.323755336,14.4073839 L6.33077868,8.18170048 L0.323930046,1.95623438 C-0.107743735,1.50865327 -0.107743735,0.783085868 0.323930046,0.335685833 C0.755603827,-0.111895278 1.45573719,-0.111895278 1.88758568,0.335685833 L8.67636696,7.37167971 C8.89220385,7.59548838 9,7.88850389 9,8.18166427 C9,8.4749695 8.8919942,8.76820231 8.67619225,8.99190233 Z" id="Path"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

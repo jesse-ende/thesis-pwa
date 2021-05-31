@@ -1,0 +1,788 @@
+@charset "utf-8";
+/* CSS Document */
+
+/* Main Nav Body */
+
+ul#mainNav {
+    height: 36px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Float LI Elements - horizontal display */
+
+ul#mainNav li {
+    float: left;
+}
+
+/* Link - common attributes */
+
+ul#mainNav li a {
+    background: url(../images/mainNav_sprite.png) no-repeat scroll top left;
+    display: block;
+    height: 36px;
+    position: relative;
+}
+
+/* Brand Menu Main */
+
+ul#mainNav li a.allTools {
+    width: 75px;
+}
+
+ul#mainNav li a.toolsByTrade {
+    width: 109px;
+    background-position: -75px 0px;
+}
+
+ul#mainNav li a.newTools {
+    width: 83px;
+    background-position: -184px 0px;
+}
+
+ul#mainNav li a.supportServices {
+    width: 143px;
+    background-position: -267px 0px;
+}
+
+ul#mainNav li a.promotionsEvents {
+    width: 153px;
+    background-position: -410px 0px;
+}
+
+/* Span (on hover) - common attributes */
+
+ul#mainNav li a span {
+    background: url(../images/mainNav_sprite.png) no-repeat scroll bottom left;
+    background-repeat: no-repeat;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 500;
+    text-indent: -9999px;
+}
+
+/* Span (on hover) - display pointer */
+
+ul#mainNav li a span:hover {
+    cursor: pointer;
+}
+
+ul#mainNav li a.allTools span {
+    background-position: 0px -36px;
+}
+
+ul#mainNav li a.toolsByTrade span {
+    background-position: -75px -36px;
+}
+
+ul#mainNav li a.newTools span {
+    background-position: -184px -36px;
+}
+
+ul#mainNav li a.supportServices span {
+    background-position: -267px -36px;
+}
+
+ul#mainNav li a.promotionsEvents span {
+    background-position: -410px -36px;
+}
+
+ul#mainNav li {
+    display: inline;
+    position: relative;
+    z-index: 500;
+}
+
+ul#mainNav ul {
+    margin: 0;
+    padding: 0;
+    line-height: 4em;
+    z-index: 500;
+}
+
+ul#mainNav li a:hover {
+    text-decoration: underline;
+    z-index: 500;
+}
+
+ul#mainNav li.mega a {
+    padding: 0 0;
+    z-index: 500;
+}
+
+ul#mainNav li.mega a:hover {
+    text-decoration: underline;
+}
+
+ul#mainNav div {
+    display: none;
+}
+
+ul#mainNav li.mega div {
+    width: 555px;
+    height: 216px;
+    position: absolute;
+    left: -1px;
+    padding: 1.3em;
+    color: #bbcadc;
+    margin: 0;
+    background-image: url(../images/subBlock-trans.png);
+    background-repeat: no-repeat;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    line-height: 4em;
+}
+
+ul#mainNav li.hovering div {
+    display: block;
+}
+
+ul#mainNav li.mega div a {
+    color: #bbcadc;
+    padding: 0 14px 0 6px;
+    background-image: none;
+    text-decoration: underline;
+    display: inline;
+}
+
+ul#mainNav div p {
+    margin: 0 0 0 0;
+    padding: 0;
+    line-height: 20px;
+}
+
+.mega-col {
+    float: left;
+    width: 170px;
+    overflow: hidden;
+    margin: 0 14px 0 0;
+    font-size: 11px;
+}
+
+.mega-col-wide a {
+    padding: 0 14px 0 6px;
+    background-image: url(../images/linkDivider.gif);
+    background-repeat: no-repeat;
+    background-position: right;
+}
+
+.mega-col-wide {
+    width: 90%;
+    background-image: url(../images/blue_divider.gif);
+    background-position: top left;
+    background-repeat: repeat-x;
+    margin: 8px 0 0 0;
+    padding: 10px 0 0 0;
+    clear: both;
+}
+
+ul#mainNav li.megaSmall a {
+    padding: 0 0;
+    z-index: 500;
+}
+
+ul#mainNav li.megaSmall a:hover {
+    text-decoration: underline;
+}
+
+#small {
+    background-image: url(../images/subBlock-short--trans.png);
+}
+
+ul#mainNav li.megaSmall div {
+    width: 555px;
+    height: 216px;
+    position: absolute;
+    left: -1px;
+    padding: 1.3em;
+    color: #bbcadc;
+    margin: 0;
+    background-image: url(../images/subBlock-short--trans.png);
+    background-repeat: no-repeat;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    line-height: 4em;
+}
+
+ul#mainNav li.megaSmall div a {
+    color: #bbcadc;
+    padding: 0 14px 0 6px;
+    background-image: none;
+    text-decoration: underline;
+    display: inline;
+}
+
+/*
+--------------------------------------------------------------------------
+Brand Nav Body
+--------------------------------------------------------------------------
+*/
+
+ul#brandNav {
+    height: 35px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Float LI Elements - horizontal display */
+
+ul#brandNav li {
+    float: left;
+}
+
+/* Link - common attributes */
+
+ul#brandNav li a {
+    background: url(../images/brand_sprite.jpg) no-repeat scroll top left;
+    display: block;
+    height: 35px;
+    position: relative;
+}
+
+/* Brand Menu Main */
+
+ul#brandNav li a.vise-grip {
+    width: 90px;
+}
+
+ul#brandNav li a.marathon {
+    width: 72px;
+    background-position: -90px 0px;
+}
+
+ul#brandNav li a.quick-grip {
+    width: 100px;
+    background-position: -162px 0px;
+}
+
+ul#brandNav li a.speedbor {
+    width: 93px;
+    background-position: -262px 0px;
+}
+
+ul#brandNav li a.strait-line {
+    width: 68px;
+    background-position: -355px 0px;
+}
+
+ul#brandNav li a.unibit {
+    width: 61px;
+    background-position: -424px 0px;
+}
+
+ul#brandNav li a.marples {
+    width: 62px;
+    background-position: -485px 0px;
+}
+
+ul#brandNav li a.hanson {
+    width: 72px;
+    background-position: -547px 0px;
+}
+
+/* Span (on hover) - common attributes */
+
+ul#brandNav li a span {
+    background: url(../images/brand_sprite.jpg) no-repeat scroll bottom left;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 100;
+    text-indent: -9999px;
+}
+
+/* Span (on hover) - display pointer */
+
+ul#brandNav li a span:hover {
+    cursor: pointer;
+}
+
+ul#brandNav li a.vise-grip span {
+    background-position: 0px -35px;
+}
+
+ul#brandNav li a.marathon span {
+    background-position: -90px -35px;
+}
+
+ul#brandNav li a.quick-grip span {
+    background-position: -162px -35px;
+}
+
+ul#brandNav li a.speedbor span {
+    background-position: -262px -35px;
+}
+
+ul#brandNav li a.strait-line span {
+    background-position: -355px -35px;
+}
+
+ul#brandNav li a.unibit span {
+    background-position: -424px -35px;
+}
+
+ul#brandNav li a.marples span {
+    background-position: -485px -35px;
+}
+
+ul#brandNav li a.hanson span {
+    background-position: -547px -35px;
+}
+
+/*
+--------------------------------------------------------------------------
+Search Brand Nav Body
+--------------------------------------------------------------------------
+*/
+
+ul#searchBrandNav {
+    height: 260px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Float LI Elements - horizontal display */
+
+ul#searchBrandNav li {
+    float: left;
+}
+
+/* Link - common attributes */
+
+ul#searchBrandNav li a {
+    background: url(../images/search-categories-sprite.jpg) no-repeat scroll top left;
+    display: block;
+    height: 260px;
+    position: relative;
+}
+
+/* Brand Menu Main */
+
+ul#searchBrandNav li a.marathon {
+    width: 138px;
+}
+
+ul#searchBrandNav li a.unibit {
+    width: 138px;
+    background-position: -138px 0px;
+}
+
+ul#searchBrandNav li a.vise-grip {
+    width: 138px;
+    background-position: -276px 0px;
+}
+
+ul#searchBrandNav li a.speedbor {
+    width: 138px;
+    background-position: -414px 0px;
+}
+
+ul#searchBrandNav li a.hanson {
+    width: 138px;
+    background-position: -552px 0px;
+}
+
+ul#searchBrandNav li a.strait-line {
+    width: 138px;
+    background-position: -690px 0px;
+}
+
+ul#searchBrandNav li a.quick-grip {
+    width: 142px;
+    background-position: -828px 0px;
+}
+
+/* Span (on hover) - common attributes */
+
+ul#searchBrandNav li a span {
+    background: url(../images/search-categories-sprite.jpg) no-repeat scroll bottom left;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 100;
+    text-indent: -9999px;
+}
+
+/* Span (on hover) - display pointer */
+
+ul#searchBrandNav li a.marathon span {
+    background-position: 0px -260px;
+}
+
+ul#searchBrandNav li a.unibit span {
+    background-position: -138px -260px;
+}
+
+ul#searchBrandNav li a.vise-grip span {
+    background-position: -276px -260px;
+}
+
+ul#searchBrandNav li a.speedbor span {
+    background-position: -414px -260px;
+}
+
+ul#searchBrandNav li a.hanson span {
+    background-position: -552px -260px;
+}
+
+ul#searchBrandNav li a.strait-line span {
+    background-position: -690px -260px;
+}
+
+ul#searchBrandNav li a.quick-grip span {
+    background-position: -828px -260px;
+}
+
+/*
+--------------------------------------------------------------------------
+International Nav
+--------------------------------------------------------------------------
+*/
+
+ul#navmenu-h {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    position: relative;
+    z-index: 600;
+}
+
+ul#navmenu-h ul {
+    margin: 0;
+    list-style: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    height: 22px;
+    float: left;
+    font-size: 11px;
+    padding: 8px 0 0 0;
+    width: 180px;
+    display: none
+}
+
+ul#navmenu-h ul ul,
+ul#navmenu-h ul ul ul {
+    top: 0;
+    left: 100%;
+}
+
+ul#navmenu-h li {
+    float: left;
+    display: inline;
+    position: relative;
+}
+
+ul#navmenu-h ul li {
+    width: 100%;
+    display: block;
+}
+
+/* Root Menu */
+
+ul#navmenu-h a {
+    float: left;
+    text-decoration: none;
+    height: 1%;
+    display: block;
+}
+
+/* Root Menu Hover Persistence */
+
+ul#navmenu-h a:hover,
+ul#navmenu-h li:hover a,
+ul#navmenu-h li.iehover a {}
+
+/* 2nd Menu */
+
+ul#navmenu-h li:hover li a,
+ul#navmenu-h li.iehover li a {
+    float: none;
+    background: #013a7f;
+    color: #FFF;
+    padding: 8px;
+    text-decoration: none;
+}
+
+/* 2nd Menu Hover Persistence */
+
+ul#navmenu-h li:hover li a:hover,
+ul#navmenu-h li:hover li:hover a,
+ul#navmenu-h li.iehover li a:hover,
+ul#navmenu-h li.iehover li.iehover a {
+    background: #ffca12;
+    color: #000;
+    padding: 8px;
+    text-decoration: none;
+}
+
+/* 3rd Menu */
+
+ul#navmenu-h li:hover li:hover li a,
+ul#navmenu-h li.iehover li.iehover li a {
+    background: #999;
+}
+
+/* 3rd Menu Hover Persistence */
+
+ul#navmenu-h li:hover li:hover li a:hover,
+ul#navmenu-h li:hover li:hover li:hover a,
+ul#navmenu-h li.iehover li.iehover li a:hover,
+ul#navmenu-h li.iehover li.iehover li.iehover a {
+    background: #666;
+}
+
+/* 4th Menu */
+
+ul#navmenu-h li:hover li:hover li:hover li a,
+ul#navmenu-h li.iehover li.iehover li.iehover li a {
+    background: #666;
+}
+
+/* 4th Menu Hover */
+
+ul#navmenu-h li:hover li:hover li:hover li a:hover,
+ul#navmenu-h li.iehover li.iehover li.iehover li a:hover {
+    background: #333;
+}
+
+/* Hover Function - Do Not Move */
+
+ul#navmenu-h li:hover ul ul,
+ul#navmenu-h li:hover ul ul ul,
+ul#navmenu-h li.iehover ul ul,
+ul#navmenu-h li.iehover ul ul ul {
+    display: none;
+}
+
+ul#navmenu-h li:hover ul,
+ul#navmenu-h ul li:hover ul,
+ul#navmenu-h ul ul li:hover ul,
+ul#navmenu-h li.iehover ul,
+ul#navmenu-h ul li.iehover ul,
+ul#navmenu-h ul ul li.iehover ul {
+    display: block;
+}
+
+/* UTC NAV */
+
+ul#utcNav {
+    height: 36px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Float LI Elements - horizontal display */
+
+ul#utcNav li {
+    float: left;
+}
+
+/* Link - common attributes */
+
+ul#utcNav li a {
+    background: url(../challenge/images/utcNav_sprite.png) no-repeat scroll top left;
+    display: block;
+    height: 36px;
+    position: relative;
+}
+
+/* UTC Menu Main */
+
+ul#utcNav li a.utcHome {
+    width: 71px;
+    background-position: 0px 0px;
+}
+
+ul#utcNav li a.utcParticipants {
+    width: 95px;
+    background-position: -71px 0px;
+}
+
+ul#utcNav li a.utcChallenge {
+    width: 108px;
+    background-position: -166px 0px;
+}
+
+ul#utcNav li a.utcEnter {
+    width: 101px;
+    background-position: -275px 0px;
+}
+
+ul#utcNav li a.utcSchedule {
+    width: 76px;
+    background-position: -376px 0px;
+}
+
+ul#utcNav li a.utcRules {
+    width: 54px;
+    background-position: -452px 0px;
+}
+
+ul#utcNav li a.utcNews {
+    width: 52px;
+    background-position: -506px 0px;
+}
+
+ul#utcNav li a.utcStandings {
+    width: 80px;
+    background-position: -558px 0px;
+}
+
+ul#utcNav li a.utcPrizes {
+    width: 56px;
+    background-position: -638px 0px;
+}
+
+ul#utcNav li a.utcSignup {
+    width: 67px;
+    background-position: -694px 0px;
+}
+
+ul#utcNav li a.utcPhotos {
+    width: 61px;
+    background-position: -761px 0px;
+}
+
+/* Span (on hover) - common attributes */
+
+ul#utcNav li a span {
+    background: url(../challenge/images/utcNav_sprite.png) no-repeat scroll bottom left;
+    background-repeat: no-repeat;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 500;
+    text-indent: -9999px;
+}
+
+/* Span (on hover) - display pointer */
+
+ul#utcNav li a span:hover {
+    cursor: pointer;
+}
+
+ul#utcNav li a.utcHome span {
+    background-position: 0px -36px;
+}
+
+ul#utcNav li a.utcParticipants span {
+    background-position: -71px -36px;
+}
+
+ul#utcNav li a.utcChallenge span {
+    background-position: -166px -36px;
+}
+
+ul#utcNav li a.utcEnter span {
+    background-position: -275px -36px;
+}
+
+ul#utcNav li a.utcSchedule span {
+    background-position: -376px -36px;
+}
+
+ul#utcNav li a.utcRules span {
+    background-position: -452px -36px;
+}
+
+ul#utcNav li a.utcNews span {
+    background-position: -506px -36px;
+}
+
+ul#utcNav li a.utcStandings span {
+    background-position: -558px -36px;
+}
+
+ul#utcNav li a.utcPrizes span {
+    background-position: -638px -36px;
+}
+
+ul#utcNav li a.utcSignup span {
+    background-position: -694px -36px;
+}
+
+ul#utcNav li a.utcPhotos span {
+    background-position: -761px -36px;
+}
+
+ul#utcNav li {
+    display: inline;
+    position: relative;
+    z-index: 500;
+}
+
+ul#utcNav ul {
+    margin: 0;
+    padding: 0;
+    line-height: 4em;
+    z-index: 500;
+}
+
+ul#utcNav li a:hover {
+    text-decoration: underline;
+    z-index: 500;
+}
+
+ul#utcNav li.mega a {
+    padding: 0 0;
+    z-index: 500;
+}
+
+ul#mainNav li.mega a:hover {
+    text-decoration: underline;
+}
+
+ul#utcNav div {
+    display: none;
+}
+
+ul#utcNav li.mega div {
+    width: 555px;
+    height: 216px;
+    position: absolute;
+    left: -1px;
+    padding: 1.3em;
+    color: #bbcadc;
+    margin: 0;
+    background-image: url(../images/subBlock-trans.png);
+    background-repeat: no-repeat;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    line-height: 4em;
+}
+
+ul#utcNav li.hovering div {
+    display: block;
+}
+
+ul#utcNav li.mega div a {
+    color: #bbcadc;
+    padding: 0 14px 0 6px;
+    background-image: none;
+    text-decoration: underline;
+    display: inline;
+}
+
+ul#utcNav div p {
+    margin: 0 0 0 0;
+    padding: 0;
+    line-height: 20px;
+}

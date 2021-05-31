@@ -1,0 +1,15 @@
+What runs santanderx.com?
+  
+Analytics
+Hotjar
+Web Server
+Nginx 1.15.8
+Build CI Systems
+webpack	
+Web Framework
+Bootstrap
+Tag Managers
+Google Tag Manager
+Javascript Frameworks
+Hammer.js
+Modernizr
