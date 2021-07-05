@@ -15,6 +15,9 @@ def process_PWA(website, folders, handled_websites, audit="ylt", retries=0, remo
     # print("Processing web app of", website, "...", folders['website_folder'], "b")
     if "copy" in website:
         return
+    if "(" in website and "System Volume" in website or len(website) < 4:
+        return
+    
     if website not in handled_websites:
         temp_output_folder = "~/Documents/temp_usb/"
 
@@ -286,70 +289,9 @@ def unzip_remove_website(website_folder, folders, handled_websites, remove=False
     for website in zipped_websites:
         if website == "fheoggkfdfchfphceeifdbepaooicaho (30).zip" or website == "www.yves_rocher.pl (1).zip" or "(" in website or "tvarenasport" in website or "tutorials.de" in website or "bollywoodoffice.com" in website or "aceronline.ru" in website or "thredup.com" in website or "threadsmagazine.com" in website or "netralnews" in website:
             continue
-        
-        # if os.path.exists(folders['yellowlabtools_folder'] + website.split(".zip")[0] + ".json.gz"):
-        #     if os.stat(os.path.exists(folders['yellowlabtools_folder'] + website.split(".zip")[0] + ".json.gz")).st_size == 0:
-
-                # print(handled_websites,website.split(".zip")[0],  website.split(".zip")[0] in handled_websites)
-                # exit(1)
-                # if website.split(".zip")[0] in handled_websites:
-                #     # print("skipping", website)
-                #     continue
-                # if website.split(".zip")[0] not in unzipped_websites:
-                # print("unzipping 1", website)
-                # try:
-                #     # subprocess.check_output("mv " + website_folder + website + " " + website_folder + "b", shell=True)
-                #     subprocess.check_output("unzip -j -o " + website_folder + website + " -d " + temp_output_folder + "b", shell=True)
-                # except:
-                #     print("unzipping failed, removing", website)
-                #     # exit(0)
-                #     subprocess.check_output("rm -rf " + temp_output_folder + "b", shell=True)
-                    
-                #     continue
 
         process_PWA(website.split(".zip")[0].replace("_", "-"), folders, handled_websites)
-                # exit(0)
-                    # continue
-                # if remove:
-                #     try:
-                #         # website.split(".zip")[0]
-                #         subprocess.check_output("rm -rf " + temp_output_folder + "b", shell=True)
-                #         print("removed", temp_output_folder + "b", website.split(".zip")[0])
-                #         # subprocess.check_output("mv " + website_folder + "b" + " " + website_folder + website, shell=True)
-                #     # os.rmdir(website_folder + website.split(".zip")[0])
-                #     except:
-                #         print("removing failed", temp_output_folder + website)
-                #         exit(0)
-        # if not website.split(".zip")[0] in handled_websites:
-        #     print("unzipping 2", website)
-        #     try:
-        #         # subprocess.check_output("mv " + website_folder + website + " " + website_folder + "b", shell=True)
-        #         subprocess.check_output("unzip -j -o " + website_folder + website + " -d " + temp_output_folder + "b", shell=True)
-        #     except:
-        #         print("unzipping failed, removing", website)
-        #         # exit(0)
-        #         subprocess.check_output("rm -rf " + temp_output_folder + "b", shell=True)
-                
-        #         continue
 
-        #     process_PWA(website.split(".zip")[0].replace("_", "-"), folders, handled_websites)
-        #         # continue
-        #     if remove:
-        #         try:
-        #             # website.split(".zip")[0]
-        #             subprocess.check_output("rm -rf " + temp_output_folder + "b", shell=True)
-        #             print("removed", temp_output_folder + "b", website.split(".zip")[0])
-        #             # subprocess.check_output("mv " + website_folder + "b" + " " + website_folder + website, shell=True)
-        #         # os.rmdir(website_folder + website.split(".zip")[0])
-        #         except:
-        #             print("removing failed", temp_output_folder + website)
-        #             exit(0)
-        #     # exit(0)
-        # exit(1)
-    # if remove:
-    #     for website in unzipped_websites:
-    #         if website + ".zip" in zipped_websites:
-    #             os.remove(website_folder + website.split(".zip")[0])
 
 def remove_duplicate_sites(all_urls, folders):
     all_sites_no_domain = {}
@@ -582,10 +524,20 @@ if __name__ == "__main__":
         for l in f:
             if l != "website, size, html, css, js\n" and "0, 0, 0, 0, 0" not in l:
                 handled_websites.append(l.split(",")[0])
-    unzip_remove_website("/media/jesse/USB64/", folders, handled_websites, True)
-    exit(0)
-    # with Pool(1) as p:
-    #     p.map(partial(process_PWA, folders=folders, handled_websites=handled_websites), os.listdir(folders['website_folder']))
+    # unzip_remove_website("/media/jesse/USB64/", folders, handled_websites, True)
+    # exit(0)
+
+    website_folder = []
+    with open(os.getcwd() + "/no_duplicate_websites.txt", "r") as f:
+        for website in f:
+            website_folder.append(website.strip())
+    temp = []
+    for i in range(len(website_folder) - 1, 0, -1):
+        temp.append(website_folder[i])
+    website_folder = temp
+    folders['website_folder'] = website_folder
+    with Pool(2) as p:
+        p.map(partial(process_PWA, folders=folders, handled_websites=handled_websites), folders['website_folder'])
 # processed = 0
 # with open(os.getcwd() + "/last_sws.txt", "r") as f:
 #     for website in f:
