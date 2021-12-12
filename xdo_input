@@ -1,0 +1,8 @@
+click 1138 767
+keydown alt
+sleep 1
+key Tab
+keyup alt
+key alt+Tab
+key alt+Tab
+key F2
