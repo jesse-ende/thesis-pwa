@@ -6,3 +6,108 @@ node_modules/
 notes.txt
 commands.txt
 todo.txt
+
+1mredirects.txt
+1mredirects2 (copy).txt
+1mredirects2.txt
+1mredirects_pwa.txt
+1mredirects_server (copy).txt
+1mredirects_server.txt
+CSVs (copy)/
+all_urls_dump
+allsites.txt
+allsizes.txt
+beautified_yerkramas_test.js
+cluster_progress.txt
+custom_importscripts.js
+data_analysis.R
+diff_2.txt
+empty_sws.txt
+faulty sites/
+final_sites.txt
+first_sws.txt
+geckodriver.log
+handled_urls.txt
+javascript_local_run_test.js
+js_interpreter_test.js
+languages_non_js_sws (copy).txt
+languages_non_js_sws.txt
+last_sws.txt
+local_vars/
+manifest_scraper.py
+missing_manifest.txt
+missing_manifests.txt
+missing_manifests_indexes/
+missing_sizes/
+missing_sizes_from_usb
+missing_sizes_websites.txt
+missing_whatruns.txt
+missing_whatruns_notxt.txt
+missing_whatruns_set.txt
+missing_ylt_sites.txt
+no_content_webapps.txt
+no_dup_websites_final.txt
+no_js_urls.txt
+other_ohcount.temp
+post_processor2.py
+post_processor3.py
+potential_doctype
+potential_doctype2
+progress_backup.txt
+temp_manifest/
+test.py
+unfound_manifests.txt
+unknown_domains.txt
+unmatched_lighthouse.txt
+unmatched_webapps.txt
+unmatched_webapps/
+unmatched_webapps_original.txt
+unmatched_yellowlab.txt
+unreachable/
+usb_contents.txt
+webapps_mapping.txt
+webapps_mapping_manual.txt
+whatruns_bb/
+whatruns_g/
+whatruns_latest/
+whatruns_small.txt
+ylt_test.json
+zero_sizes_sites.txt
+CSVs/pwa_results (copy).txt
+CSVs/pwa_results.csv
+CSVs/pwa_results_final (copy).csv
+1mredirects (copy).txt
+CSVs/SW (copy).csv
+CSVs/SW (copy).json
+CSVs/SW_diff_2.csv
+CSVs/SW_sep_test.csv
+CSVs/filtered_data (copy).csv
+CSVs/filtered_data.csv
+CSVs/filtered_ligthouse.csv
+CSVs/filtered_ylt.csv
+CSVs/lighthouse_aggregated.csv
+CSVs/lighthouse_aggregated_final (copy).csv
+CSVs/mergedwebsiteLOC.csv
+CSVs/pwa_results (copy).txt
+CSVs/pwa_results.csv
+CSVs/pwa_results_final (copy).csv
+CSVs/pwa_results_final_final.csv
+CSVs/sw_results (copy).csv
+CSVs/sw_results.csv
+CSVs/sw_results_final (copy 1).csv
+CSVs/sw_results_final (copy).csv
+CSVs/ylt_aggregated_test.csv
+Rplots.pdf
+CSVs/ylt_aggregated.csv
+CSVs/ylt_aggregated_final (copy).csv
+CSVs/temp_pwa_loc.csv
+CSVs/temp_sw_loc.csv
+CSVs/lighthouse_aggregated_test.csv
+random_sites_import_check.txt
+run_cluster2.sh
+run_cluster3.sh
+second_sws.txt
+seperate_data/
+src/
+sw_check_output.txt
+SWs/

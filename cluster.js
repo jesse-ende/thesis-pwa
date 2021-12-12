@@ -1,7 +1,9 @@
 const { Cluster } = require('puppeteer-cluster');
 const axios = require("axios");
 const fs = require('fs');
-const os = require('os')
+const os = require('os');
+const { exit } = require('process');
+var JSSoup = require('jssoup').default;
 const cpuCount = os.cpus().length
 // require('https').globalAgent.options.ca = require('ssl-root-cas').create();
 var rootCas = require('ssl-root-cas').create();
@@ -58,23 +60,27 @@ function manifestCheck(manifest) {
 
 async function getFeatureSupport(page) {
     return page.evaluate(() => {
-        registration = navigator.serviceWorker.getRegistration();
-        return {
-            "Offline capabilities": "caches" in window,
-            "Push notificatios": "pushManager" in registration,
-            "Add to Home Screen": document.createElement("link").relList.supports("manifest") && "onbeforeinstallprompt" in window,
-            "Background Sync": "sync" in registration,
-            "Navigation Preload": "navigationPreload" in registration,
-            "Silent Push": "budget" in navigator && "reserve" in navigator.budget,
-            "Storage Estimation": "storage"in navigator && "estimate" in navigator.storage ,
-            "Persistent Storage": "storage"in navigator && "persist"in navigator.storage ,
-            "Web Share": "share" in navigator,
-            "Media Session": "mediaSession" in navigator,
-            "Media Capabilities": "mediaCapabilities" in navigator,
-            "Device Memory": "deviceMemory" in navigator,
-            "Getting Installed Related Apps": "getInstalledRelatedApps" in navigator,
-            "Payment Request": "PaymentRequest" in window,
-            "Credential Management": "credentials" in navigator
+        if (navigator) {
+            if (navigator.serviceWorker) {
+                registration = navigator.serviceWorker.getRegistration();
+                return {
+                    "Offline capabilities": "caches" in window,
+                    "Push notifications": "pushManager" in registration,
+                    "Add to Home Screen": document.createElement("link").relList.supports("manifest") && "onbeforeinstallprompt" in window,
+                    "Background Sync": "sync" in registration,
+                    "Navigation Preload": "navigationPreload" in registration,
+                    "Silent Push": "budget" in navigator && "reserve" in navigator.budget,
+                    "Storage Estimation": "storage"in navigator && "estimate" in navigator.storage,
+                    "Persistent Storage": "storage"in navigator && "persist"in navigator.storage,
+                    "Web Share": "share" in navigator,
+                    "Media Session": "mediaSession" in navigator,
+                    "Media Capabilities": "mediaCapabilities" in navigator,
+                    "Device Memory": "deviceMemory" in navigator,
+                    "Getting Installed Related Apps": "getInstalledRelatedApps" in navigator,
+                    "Payment Request": "PaymentRequest" in window,
+                    "Credential Management": "credentials" in navigator
+                }
+            }
         }
     })
 }
@@ -97,7 +103,7 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
         var browserArgs = ['--enable-features=NetworkService']
         const cluster = await Cluster.launch({
             concurrency: Cluster.CONCURRENCY_BROWSER,
-            maxConcurrency: 8,
+            maxConcurrency: 1,
             monitor: true,
             timeout: 60 * 1000,
             puppeteerOptions: {
@@ -106,7 +112,8 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
             },
         });
 
-        var outputFolder = __dirname + "/SWsbrowser/"
+        var outputFolder = __dirname + "/SWs/emptySWs/"
+        var outputFolder = __dirname + "/SWs/faultySWs/"
         var unreachableSitesFolder = __dirname + "/unreachable/"
         var unreachableUrls = [];
         var swsFound = 0;
@@ -141,7 +148,7 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
             var manifestUrl;
             var header = {"service-worker": "script"};
             // require('https').globalAgent.options.ca = rootCas;
-
+            console.log("processing", url)
             // await page.setRequestInterception(true);
             // await page.on('request', async request => {
             //     // if (['stylesheet', 'font', 'image'].indexOf(request.resourceType()) !== -1) {
@@ -191,7 +198,7 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
             try {
                 const response = await Promise.race([
                     sleep(sleepOptions),
-                    page.goto(url, {waitUntil: 'networkidle0', timeout: 30000 + 1000}).catch(e => (addUnreachableSite(unreachableSitesFolder, url))),
+                    await page.goto(url, {waitUntil: 'networkidle0', timeout: 30000 + 1000}).catch(e => (addUnreachableSite(unreachableSitesFolder, url))),
                 ]);
                 clearTimeout(sleepOptions.timer);
                 const success = response !== LOAD_FAIL;
@@ -212,16 +219,37 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
                 // var sw = await swTarget.worker();
             } catch (error) {
                 console.log(url, "does not have a sw");
+                await page.close()
                 return
             }
             console.log("Found sw with source", sw._targetInfo.url);
-            
+
+            var siteFolder = outputFolder + sw._targetInfo.url.replace("https://", "").split("/")[0]
+            // await waitForServiceWorkers(page);
+            var feature_support = JSON.stringify(await getFeatureSupport(page))
+            console.log("feature support", feature_support, process.cwd())
+            return;
+            await fs.writeFileSync(siteFolder + "/" + "features.json.bak", feature_support);
+
             try {
                 var index = await axios.get(url, {timeout: 30000});
             } catch {
                 console.log("Couldn't get index of", url);
                 await addUnreachableSite(unreachableSitesFolder, url)
             }
+            
+            // var links = await page.$("link")
+            // console.log("links", links)
+            // // var links = page.getElementsByTagName("link")
+            // // links[0].getAttribute("href")
+            // for (var link of links) {
+            //     console.log("link", link)
+            // }
+            if (!fs.existsSync(siteFolder)){
+                fs.mkdirSync(siteFolder);
+                console.log("making sitefolder", siteFolder)
+            }
+            fs.writeFileSync(siteFolder + "/index.html", index.data, {encoding:'utf8',flag:'w'});
 
             if (index) {
                 if (index.data) {
@@ -257,52 +285,55 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
             catch (error) {
                 console.log("error getting sw", url);
             }
-            var siteFolder = outputFolder + sw._targetInfo.url.replace("https://", "").split("/")[0]
+            var siteFolder = outputFolder + "/" + sw._targetInfo.url.replace("https://", "").split("/")[0]
+            console.log("sitefolder", siteFolder)
 
-            if (!fs.existsSync(siteFolder)){
-                fs.mkdirSync(siteFolder);
-            }
             try {
                 fs.promises.access(siteFolder);
             } catch (error) {
                 fs.mkdirSync(siteFolder);
             }
-            // fs.appendFile(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").split("/")[1], result.data);
+            fs.appendFile(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").split("/")[1], result.data);
+
             if (result) {
-                fs.writeFileSync(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").replaceAll("/", "_").substring(0, 25), result.data, {encoding:'utf8',flag:'w'});
+                fs.writeFileSync(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").replace(/\//g, "_").substring(0, 25), result.data, {encoding:'utf8',flag:'w'});
             }
             else {
-                fs.writeFileSync(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").replaceAll("/", "_").substring(0, 25) + "emptySW", "", {encoding:'utf8',flag:'w'});
+                fs.writeFileSync(siteFolder + "/" + sw._targetInfo.url.replace("https://", "").replace(/\//g, "_").substring(0, 25) + "emptySW", "", {encoding:'utf8',flag:'w'});
             }
             
             if (manifestResult) {
                 try {
                     fs.writeFileSync(siteFolder + "/" + "manifest.json", JSON.stringify(manifestCheck(manifestResult.data)))
                 } catch (error) {
-                    console.log(error)
+                    // console.log(error.substring(0, 500))
                     console.log("Checking manifest went wrong.");
                     fs.writeFileSync(siteFolder + "/" + "manifestError", manifestResult.data)
                 }
             }
-            
+
             fs.writeFileSync(siteFolder + "/" + "features.json",  JSON.stringify(await getFeatureSupport(page)));
             if (securityDetails) {
                 fs.writeFileSync(siteFolder + "/" + "requests",  securityDetails.toString())
             }
-
-            // if (swsFound === 10) {
-            //     console.log("exiting", urls.indexOf(url.substring(7, url.length)));
-            //     // TODO: check waar bent gebleven
-            //     exit();
-            // }
         });
 
-        // 16030
-        for (var i = 367826; i < urls.length - 1; i++) {
-            // console.log("urls i", urls[i])
-            const url = urls[i].split(",")[1];
-            // const url = "twitter.com"
-            cluster.execute("https://www." + url.replace("\r", ""));
+        var currentprogress = fs.readFileSync(__dirname + "/cluster_progress.txt").toString();
+        var urls = ['1,samsonite.com'];
+        // empty
+        urls = ['salvationarmy.org.hk', 'www.physioinq.com.au', 'www.rolia.net', 'www.roselinlin.com', 'www.algosobre.com.br', 'www.gsmkolik.com', 'www.leomax.ru', 'www.letskinky.com', 'rfindustries.com', 'www.cycleclassifieds.us', 'ukrzoloto.ua', 'www.onebladeshave.com', 'www.jackpotcapital.eu', 'pockee.com', 'www.golbazar.com', 'www.gasiweb.com', 'nzwarriors.com', 'www.flyonit.com',  'www.marktest.com', 'citizensgbr.org', 'zolotoy.ru', 'www.dnaromance.com', 'shytok.net', 'www.carecalendar.org', 'www.bse-sofia.bg', 'www.unra.go.ug', 'www.description-pdf.ru', 'shopp.ir', '2-berega.ru', 'phoneemdad.com', 'pitstopusa.com', 'facturedo.pe', 'www.lamuscle.com', 'sotaychemgio.com', 'ideco-ipo-nisa.com', 'www.coolcousin.com', 'www.casadaergonomia.com.br', 'swingers.club', 'ci-plugin.theloyaltyco.app', 'statusheart.com', 'city-adm.lviv.ua', 'hoaquadaklak.com', 'jimmybrings.com.au', 'band-vans.net', 'euromed.ua', 'www.tropicalsky.co.uk', 'yadacar.com', 'www.galeno.com.ar', 'www.tejaratfelez.com', 'tropistudio.com', 'www.sosohome.co.kr', 'localsloveus.com', 'www.beeducated.pk', 'revolutionwatch.com', 'www.sexygame666.com', 'www.bandvista.com', 'www.tripshock.com', 'www.socooc.com', 'forum.bodybuilding.nl', 'puntocellulare.it', 'www.iasparliament.com', 'www.clinicspots.com', 'www.ub.com.vn', 'aassttiinn.com', 'www.b-soccer.jp', 'nc4x4.com', 'www.doxdun.com', 'www.thelog.com', 'www.ask.ir', 'www.bancointernacional.com.ec', 'www.giftcardstore.ir', 'www.culturainglesa.net', 'www.cheltladiescollege.org', 'umonics.sg', 'tosbourn.com', 'www.mitradel.gob.pa', 'chat.wisvis.com', 'ariaimen.com', 'www.soyvida.com', 'braun-russia.ru', 'sauconsource.com', 'www.mouwazaf-dz.com', 'krasnoturinsk.info', 'wazobet.com']
+
+        urls = ['carrodez.com.br', 'nacdnet.org']        
+        // urls = ['watchtvseries.video', 'myfreeblack.com', 'tuberel.com', 'pornerbros.com', 'see.xxx', 'wotofo.com', 'universalstandard.com', 'docusaurus.io']
+        // urls = ['www.amazonstock.com']
+        for (var i = 0; i < urls.length; i++) {
+            console.log("urls i", urls[i], urls.length, i)
+            // const url = urls[i].split(",")[1];
+            const url = urls[i]
+            cluster.execute("https://" + url.replace("\r", ""));
+            // console.log("progress", i);
+            // if (i === start + 5)
+            //     exit(1);
         }
             
         await cluster.idle();

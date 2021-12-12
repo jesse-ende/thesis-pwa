@@ -1,5 +1,7 @@
 {
   "devDependencies": {
+    "jssoup": "0.0.15",
+    "node-self": "^1.0.0-d",
     "puppeteer": "^8.0.0"
   },
   "dependencies": {
