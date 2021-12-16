@@ -3,7 +3,7 @@ import csv
 import os
 import matplotlib.pyplot as plt
 import ast
-
+from post_processor import FileInteractor
 from pandas.core.frame import DataFrame
 from scipy import stats
 import numpy as np
@@ -21,14 +21,22 @@ def get_pwa_results(data, non_duplicate_sites):
     if not os.path.exists(output_path):
         os.mkdir(output_path)
     print(data.keys())
-    unique, counts = np.unique(data[data['size'] < 11000]['size'], return_counts=True)
-    hist, bin_edges = np.histogram(data[data['size'] < 11000]['size'], bins=20)
-    bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
-    bin_centers = bin_centers[::-1]
-
+    print(len(data), len(non_duplicate_sites))
+    data = data[data['website'].isin(non_duplicate_sites)]
+    # data = data[data['html'] != 0]
+    # data = data[data['css'] != 0]
+    # data = data[data['js'] != 0]
+    print(len(data), len(non_duplicate_sites))
+    set_websites = set(non_duplicate_sites)
+    print(set_websites, len(set_websites))
+    set_websites.difference_update(set(list(data['website'])))
+    print(set_websites, len(set_websites))
+    file_interactor.save_object(set_websites, "missing_sites_zip")
+    # print(set(list(data['website'])))
+    return
     # data['size'] = data['size'] / 1000
     
-    size = True
+    size = False
     if size:
         print("pwa stats size avg", np.mean(data["size"]), "standard deviation", np.std(data['size']), "median", np.median(data['size']), np.quantile(data['size'], [0, 0.25, 0.5, 0.75, 1]))
         print("pwa stats max", data[data['size'] == max(data['size'])]['website'] + " " + str(max(data['size'])))
@@ -88,8 +96,8 @@ def get_pwa_results(data, non_duplicate_sites):
         def get_hist(col_name, threshold, bin_count, do_clip=False):
             print("pwa stats " + col_name + " avg " + str(np.mean(data[col_name])) + " standard deviation " + str(np.std(data[col_name])) + " median " + str(np.median(data[col_name])) + str(np.quantile(data[col_name], [0, 0.25, 0.5, 0.75, 1])))
             print("pwa stats max", col_name, data[data[col_name] == max(data[col_name])]['website'] + " " + str(max(data[col_name])))
-            print("pwa stats min", col_name, data[data[col_name] == min(data[col_name])]['website'] + " " + str(min(data[col_name])))
-
+            print("pwa stats min", col_name, data[data[col_name] == min(data[col_name])]['website'] + " " + "min val " + str(min(data[col_name])))
+            print("pwa stats 0", lang, data[data[col_name] == 0])
             # print("high", data[data[col_name] >= 50000][['website', col_name]])
             # end = -1
             # while bins[end] >col_namethreshold:
@@ -405,7 +413,7 @@ def get_sw_results(data, non_duplicate_sites):
     #     # plt.show()
     #     plt.savefig(output_path + "SWs count" + ".pdf")
     #     plt.close()
-    events = True
+    events = False
     if events:
         flattened_events = []
         for event_list in data["events"]:
@@ -444,7 +452,7 @@ def get_sw_results(data, non_duplicate_sites):
         print("sw stats loc avg " + str(np.mean(data["loc"])) + " standard deviation " + str(np.std(data['loc'])) + " median " + str(np.median(data['loc'])) + " " + str(np.quantile(data['loc'], [0, 0.25, 0.5, 0.75, 1])))
         print("sw stats max", data[data['loc'] == max(data['loc'])]['website'] + " " + str(max(data['loc'])))
 
-
+        print("sw stats loc with size 0", data[data['loc'] == 0]['website'])
 
         print("high", data[data['loc'] >= 50000][['website', 'loc']])
         # end = -1
@@ -619,11 +627,9 @@ def read_line_seperated_file(filepath):
 
 if __name__ == "__main__":
 
-    filtered_sites = []
-    with open(os.getcwd() + "/final_sites.txt", "r") as f:
-        for l in f:
-            filtered_sites.append(l.strip())
-
+    file_interactor = FileInteractor()
+    final_sites = file_interactor.load_object_exists("final_sw_paths")
+    
     wa_data = pd.read_csv(os.getcwd() + "/CSVs/pwa_results_final.csv", sep=";")
     # wa_data = wa_data[wa_data['website'].isin(filtered_sites)]
     wa_data = wa_data.drop_duplicates(subset=['website'])
@@ -643,8 +649,8 @@ if __name__ == "__main__":
     # non_duplicate_sites = read_line_seperated_file(os.getcwd() + "/final_sites.txt")
     # filter_results_file(filtered_sites, sw_data)
     # get_sw_results(sw_data, list(set_sws))
-    # get_pwa_results(wa_data, [])
+    get_pwa_results(wa_data, final_sites.keys())
     # get_json_results(features_data, "Feature")
     # get_json_results(manifest_data, "Manifest key")
-    get_audit_results(ylt_data, "ylt")
+    # get_audit_results(ylt_data, "ylt")
     # get_audit_results(lighthouse_data, "Lighthouse")
