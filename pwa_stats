@@ -1,12 +1,15 @@
-pwa stats size avg 6924933.798010433 standard deviation 6578905.212655841 median 5483720.0 [5.4400000e+02 2.9645665e+06 5.4837200e+06 8.9237680e+06 1.7926159e+08]
-pwa stats max 1986    launchpaddm.com 179261590
-pwa stats min 4620    business.com 544
-pwa stats css avg 18357.43455052772 standard deviation 21040.148745355153 median 12243.0[     0.    3042.5  12243.   25969.  282707. ]
-pwa stats max css 4122    projectq.us 282707
-pwa stats min css 313       phapluatplus.vn 0
-pwa stats html avg 4268.123013465971 standard deviation 10736.793729546842 median 1847.0[     0.    616.   1847.   3873. 313778.]
-pwa stats max html 7189    lottohelden.de 313778
-pwa stats min html 456                  inp.edu.eg 0
-pwa stats js avg 80458.90137086013 standard deviation 68885.37660902792 median 63218.0[     0.   30634.5  63218.  110793.5 734452. ]
-pwa stats max js 1038    ordway.org 734452
-pwa stats min js 295                      jupim.ir 0
+pwa stats size avg 6952.772458191227 standard deviation 6670.0258592601285 median 5479.1 [7.6270000e+00 2.9299305e+03 5.4791000e+03 8.9658255e+03 1.7926159e+05]
+pwa stats max 5938    launchpaddm.com 179261.59
+pwa stats min 2820             livechat.jino.ru 7.627
+pwa stats html avg 4359.913912736682 standard deviation 10960.122360472584 median 1857.0[     0.     628.5   1857.    3938.5 313778. ]
+pwa stats max html 6606    lottohelden.de 313778
+pwa stats min html 198                    wikium.net min val 0
+pwa stats 0 html                         website      size  html    css     js
+pwa stats css avg 18151.667646712925 standard deviation 20525.66467873032 median 11993.0[     0.    3049.   11993.   25696.5 282707. ]
+pwa stats max css 7218    projectq.us 282707
+pwa stats min css 99                  laitharar.com min val 0
+pwa stats 0 css                         website       size   html  css      js
+pwa stats js avg 80562.18875690932 standard deviation 69921.65297903081 median 62332.0[     0.   30072.5  62332.  110957.  734452. ]
+pwa stats max js 2199    ordway.org 734452
+pwa stats min js 198                                wikium.net min val 0
+pwa stats 0 js                                     website      size  html    css  js

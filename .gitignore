@@ -2,6 +2,7 @@ venv/
 first_sws/
 Scores/
 node_modules/
+wappalyzer/
 
 notes.txt
 commands.txt

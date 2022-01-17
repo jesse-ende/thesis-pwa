@@ -1,7 +1,9 @@
-sw stats size avg 36.176725567288244 standard deviation 83.21346383132943 median 4.957 [   0.         2.06       4.957     26.55475 1607.337  ]
-sw stats max 7859    wemakeit.com 1607.337
-sw stats ccns avg 2.496827158115774 standard deviation 3.6665064674442585 median 1.0 [  1.   1.   1.   3. 218.]
+sw stats size avg 40.57688772998945 standard deviation 86.4792548539545 median 6.178 [   0.       2.74     6.178   34.221 1508.572]
+sw stats max 6562    louisphilippe.com 1508.572
+sw stats min 15            mother.ly 0.0
+sw stats ccns avg 2.5052477984218657 standard deviation 3.6432719720397277 median 1.0 [  0.   1.   1.   3. 218.]
 sw stats max 218
-sw stats events avg ModeResult(mode=array(['activate'], dtype='<U17'), count=array([6299]))
-sw stats loc avg 745.1902943158841 standard deviation 1636.4677095964792 median 118.5 [    0.     46.    118.5   576.  29227. ]
-sw stats max 7309    louisphilippe.com 29227
+sw stats events avg ModeResult(mode=array(['activate'], dtype='<U17'), count=array([6572]))
+sw stats loc avg 840.1634829485527 standard deviation 1731.9885470395607 median 144.0 [    0.    63.   144.   766. 29227.]
+sw stats max 6562    louisphilippe.com 29227
+sw stats loc with size 0 15            mother.ly

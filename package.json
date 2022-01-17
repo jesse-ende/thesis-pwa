@@ -5,6 +5,7 @@
     "puppeteer": "^8.0.0"
   },
   "dependencies": {
+    "ast-flow-graph": "^1.0.18",
     "axios": "^0.21.1",
     "cheerio": "^1.0.0-rc.5",
     "chromium": "^3.0.2",
