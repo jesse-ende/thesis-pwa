@@ -1,3 +1,5 @@
+from enum import unique
+from tempfile import tempdir
 import pandas as pd
 import csv
 import os
@@ -30,14 +32,24 @@ def fit_distribution_ks(data, name, scipy_func, _xlabel, _ylabel, figname, edges
         dist = "gamma"
     elif scipy_func == ss.expon:
         dist = "exp"
+    elif scipy_func == ss.pareto:
+        dist = "pareto"
     figname += dist
+
+    first_ks_pvalue = ss.kstest(data, "norm")
+    print("first ks test", first_ks_pvalue)
+    # print("lognorm", ss.kstest(data, "lognorm"))
+    # print("exponweib", ss.kstest(data, "exponweib"))
+    # print("gamma", ss.kstest(data, "gamma"))
+    print("expon", ss.kstest(data, "expon"))
+    print("cauchy", ss.kstest(data, "cauchy"))
 
     params = scipy_func.fit(data)
     print("param fit", name, dist, params)
-    if scipy_func == ss.lognorm or scipy_func == ss.exponweib or scipy_func == ss.gamma or scipy_func == ss.expon:
-        X = scipy_func.rvs(*params, size=1000000)
+    if scipy_func == ss.lognorm or scipy_func == ss.exponweib or scipy_func == ss.gamma or scipy_func == ss.expon or scipy_func == ss.pareto:
+        X = scipy_func.rvs(*params, size=10000)
     elif scipy_func == ss.norm or scipy_func == ss.cauchy:
-        X = scipy_func.rvs(loc=params[0], scale=params[1], size=1000000)
+        X = scipy_func.rvs(loc=params[0], scale=params[1], size=10000)
 
     # X = scipy_func.rvs(loc=6.6, scale=-2.6* 10 ** -18, s=47, size=10000)
     # X = scipy_func.rvs(*params, size=10000)
@@ -54,8 +66,8 @@ def fit_distribution_ks(data, name, scipy_func, _xlabel, _ylabel, figname, edges
     hist_values2, edges2 = np.histogram(X, bins=100, density=True)
     plt.xlim([0, 250])
     plt.plot(edges2[:-1], hist_values2, color="blue")
-    X2 = np.sort(data['size'])
-    F2 = np.array(range(len(data['size'])))/float(len(data['size']))
+    X2 = np.sort(data)
+    F2 = np.array(range(len(data)))/float(len(data))
     plt.plot(X2, F2, color="blue")
     print(X2)
     print(plt.xticks())
@@ -73,18 +85,7 @@ def get_pwa_results(data, non_duplicate_sites):
     output_path = os.getcwd() + "/results/"
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-    print(data.keys())
-    print(len(data), len(non_duplicate_sites))
     data = data[data['website'].isin(non_duplicate_sites)]
-
-    print(data[data['html'] == 0], len(non_duplicate_sites))
-    set_websites = set(non_duplicate_sites)
-    # print(set_websites, len(set_websites))
-    set_websites.difference_update(set(list(data['website'])))
-    print(set_websites, len(set_websites))
-    # file_interactor.save_object(set_websites, "missing_sites_zip")
-    # return
-    # data['size'] = data['size'] / 1000
     
     size = True
     if size:
@@ -123,27 +124,58 @@ def get_pwa_results(data, non_duplicate_sites):
         bin_count = 60
         # clipped = np.log(clipped)
         hist_values, edges = np.histogram(clipped, bins=bin_count, density=True)
-        plt.xlim([0, edges[-2]])
-        
+        # plt.xlim([0, edges[-2]])
+    
+        # new_bins = np.linspace(low, high, 10)
+        # unique, counts = np.unique(data['size'], return_counts=True)
+        # new_data = []
+        # sums = 0
+        # for i in range(len(new_bins) - 1):
+        #     sub_bins = np.linspace(new_bins[i], new_bins[i + 1], 5)
+        #     for j in range(len(sub_bins) - 1):
+        #         mask1 = unique >= sub_bins[j]
+        #         mask2 = unique < sub_bins[j + 1]
+        #         indices = []
+        #         for idx_1 in range(len(mask1)):
+        #             if mask1[idx_1] == mask2[idx_1]:
+        #                 indices.append(idx_1)
+        #         print(len(indices))
+        #         sums += len(indices)
+
+        #         new_data.append(counts[indices])
+            # break
+        # print(sums)
+        # print(counts[:100], unique[:100], len(unique[unique < new_bins[1]]), len(unique[mask]), new_bins[0])
+
         # X = ss.lognorm.rvs(0.954, loc=0.2, scale=5, size=10000)
 
         hist_values, edges = np.histogram(clipped, bins=bin_count, density=False)
-        plt.plot(edges[:-1], hist_values, color="grey")
+        # plt.plot(edges[:-1], hist_values, color="grey")
+        # clipped = np.clip(wa_sizes_kb, 0, 20000)
+        plt.boxplot(data['size'])
         # plt.show()
         # plt.hist(clipped, bins=bin_count, color="blue")
-        plt.xlabel("Size (kB)")
-        plt.ylabel("Occurrences")
+        plt.xlabel("Size")
+        # plt.ylabel("Occurrences")
+        frame1 = plt.gca()
+        frame1.axes.xaxis.set_ticklabels([])
+        plt.ylabel("kB")
+        # plt.("")
         plt.savefig(output_path + "wa_size" + ".pdf")
         plt.close()
-        
-        hist_values, edges = np.histogram(clipped, bins=bin_count, density=True)
 
-        for func in [ss.lognorm, ss.expon, ss.norm, ss.cauchy, ss.exponweib, ss.gamma]:
+        plt.boxplot(data['size'], vert=False)
+        plt.xlim([-1000, 20000])
+        plt.savefig(output_path + "wa_size_zoomed" + ".pdf")
+        plt.close()
+
+        # hist_values, edges = np.histogram(clipped, bins=bin_count, density=True)
+
+        for func in [ss.lognorm, ss.expon, ss.norm, ss.cauchy, ss.exponweib, ss.gamma, ss.pareto]:
             fit_distribution_ks(data['size'], "wa size", func, "Size (MB)", "Occurrences", "wa_size_", edges, hist_values)
 
     loc = True
     fig, ax = plt.subplots(figsize=(8,8))
-
     if loc:
         def get_hist(col_name, threshold, bin_count, do_clip=False):
 
@@ -203,10 +235,10 @@ def get_pwa_results(data, non_duplicate_sites):
 
         plt.xlabel(f"Lines of code (x10$^{power}$)")
         plt.ylabel(f"Occurrences")            
-        plt.savefig(output_path +  "all_languages_wa" + log + ".pdf")
+        plt.savefig(output_path +  "all_languages_wa" + ".pdf")
         plt.close()
 
-def get_audit_results(data, name, non_duplicate_sites=[]):
+def get_audit_results(data, name):
     output_path = os.getcwd() + "/results/"
     print(name, data.keys())
     plt.close()
@@ -269,21 +301,8 @@ def get_audit_results(data, name, non_duplicate_sites=[]):
     print("\\textbf{75th-percentile} & ", " & ".join([str(x) for x in _75th]), "\\\\ \hline")
     print("\\textbf{Maximum} & ", " & ".join([str(x) for x in maxs]), "\\\\ \hline")
     plt.hist(all_data, bins=my_bins, color=colors[:len(all_data)], label=all_keys, alpha=1, stacked=True, density=False)
-    # sum = 0
-    # for hist_val in hist_values:
-    #     hist_max = max(hist_val)
-    #     sum += hist_max
-    #     print(hist_max, edges[list(hist_val).index(hist_max)])
-    # print(sum)
-    # print(name, hist_values)
-    # current = []
-    # for unique, counts in all_data:
-    #     if len(current):
-    #         plt.bar(unique, counts, bottom=current)
-    #     else:
-    #         plt.bar(unique, counts)
-    #     current += unique
     plt.legend()
+
     if name == "ylt":
         locs, labels = plt.xticks()
         labels = locs
@@ -302,34 +321,33 @@ def get_audit_results(data, name, non_duplicate_sites=[]):
         plt.savefig(output_path + name + "_all" + ".pdf")
     plt.close()
 
-    for key in data.keys():
-        if key == "website":
-            continue
-        plt.xlabel(key + " score")
-        plt.ylabel("Occurrences")
-        my_bins = np.linspace(-100, 100, 201)
-        if name != "ylt":
-            my_bins = np.linspace(0, 1, 100)
+    # for key in data.keys():
+    #     if key == "website":
+    #         continue
+    #     plt.xlabel(key + " score")
+    #     plt.ylabel("Occurrences")
+    #     my_bins = np.linspace(-100, 100, 201)
+    #     if name != "ylt":
+    #         my_bins = np.linspace(0, 1, 100)
 
-        # if key != "badJavascript":
-        #     continue
-        if name == "ylt":
-            plt.xlim([-105, 110])
-        else:
-            plt.xlim([0, 1.05])
-        clipped = np.clip(data[key], -100, 100)
-        if name == "lighthouse":
-            clipped = np.clip(data[key], 0, 1)
-        plt.hist(clipped, bins=my_bins, color=colors[list(data.keys()).index(key) - 1], label=key, density=False)
+    #     # if key != "badJavascript":
+    #     #     continue
+    #     if name == "ylt":
+    #         plt.xlim([-105, 110])
+    #     else:
+    #         plt.xlim([0, 1.05])
+    #     clipped = np.clip(data[key], -100, 100)
+    #     if name == "lighthouse":
+    #         clipped = np.clip(data[key], 0, 1)
+    #     plt.hist(clipped, bins=my_bins, color=colors[list(data.keys()).index(key) - 1], label=key, density=False)
 
-        # print(np.unique(data[key]))
-        plt.legend()
-        if name == "ylt":
-            plt.legend(loc="upper left")
-        # break
-        plt.savefig(output_path + name + "_" + key + ".pdf")
-        plt.close()
-    return
+    #     # print(np.unique(data[key]))
+    #     plt.legend()
+    #     if name == "ylt":
+    #         plt.legend(loc="upper left")
+    #     # break
+    #     plt.savefig(output_path + name + "_" + key + ".pdf")
+    #     plt.close()
 
 def get_json_results(data, name):
     output_path = os.getcwd() + "/results/"
@@ -342,6 +360,7 @@ def get_json_results(data, name):
         data[key] = data[key].astype("int")
         xs.append(key)
         ys.append(sum(data[key]))
+        print(key, sum(data[key]))
         if sum(data[key]) < 100 and sum(data[key]) > 0:
             print(key, "between 100 and 0")
             print(data[data[key] == 1]['website'])
@@ -398,9 +417,6 @@ def get_sw_results(data, non_duplicate_sites):
 
         fig, ax = plt.subplots(figsize=(8,8))
 
-        # bins = np.linspace(low, high, 10000)
-        # print("bins", bins)
-
         bigger, smaller = 200, 100000
         # print("plotting values between", 0, bins[end])
         print(data[data['size'] > size_threshold][['website', 'size']])
@@ -413,14 +429,14 @@ def get_sw_results(data, non_duplicate_sites):
 
         bin_count = 500
         hist_values, edges = np.histogram(clipped, bins=bin_count, density=False)
-    
+
         # log = "_log"
         log = ""
         if log:
             ax.set_yscale('log')
             # ax.set_xscale('log')
-        plt.xlim([0, edges[-1]])
-        plt.xlim([0, 250])
+        # plt.xlim([0, edges[-1]])
+        # plt.xlim([0, 250])
 
         # plt.plot(range(int(edges[-1])), [0 for _ in range(int(edges[-1]))])
 
@@ -504,7 +520,6 @@ def get_sw_results(data, non_duplicate_sites):
                     event = event.replace("'", "").replace('"', "").replace("[", "").replace("]", "").replace(" ", "")
                     if event:
                         flattened_events.append(event)
-        # exit(0)
 
         print("sw stats events avg", stats.mode(flattened_events, nan_policy="omit"))
         # print("events quantiles", np.quantile(flattened_events, [0, 0.25, 0.5, 0.75, 1]))
@@ -588,62 +603,6 @@ def get_sw_results(data, non_duplicate_sites):
         plt.savefig(output_path + "sw_loc" + log + ".pdf")
         plt.close()
 
-def search_keys(json_object, key_type, prev="", ke=""):
-    print("\n\n")
-    # keys = getattr(json_object, "keys", None)
-    # print(json_object)
-    # print("hasattr", hasattr(json_object, "keys"), json_object)
-    if hasattr(json_object, 'keys'):
-        # if json_object.keys() and type(json_object) == key_type:
-        if prev:
-            print("keys", json_object.keys(), prev)
-        else:
-            print("no keys", json_object.keys())
-        for k in json_object.keys():
-            search_keys(json_object[k], key_type, prev + str(json_object) + " " + str(k), k)
-    else:
-        print("no keyz", json_object)
-
-def output_splitted_results(data, non_duplicate_sites):
-    data = data.drop_duplicates(subset=['name'], keep="last")
-    data = data[data['name'].isin(non_duplicate_sites)]
-
-    output_folder = os.getcwd() + "/seperate_data/"
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
-    for key in data:
-        with open(output_folder + key, "wb") as f:
-            pickled = pickle.dumps(data[key])
-            pickle.dump(pickled, f)
-
-def input_splitted_results(keys):
-    output_folder = os.getcwd() + "/seperate_data/"
-    data = pd.DataFrame()
-    for key in keys:
-        with open(output_folder + key, "rb") as f:
-            pickled = pickle.load(f)
-            input_data = pickle.loads(pickled)
-            data[key] = input_data
-    return data
-
-def get_missing_sizes(size_folder, filtered_sites):
-    print("start len", len(filtered_sites))
-    for folder in os.listdir(size_folder):
-        if ".zip" in folder:
-            folder = folder.split(".zip")[0]
-        if "_" in folder:
-            folder = folder.replace("_", "-")
-        if folder in filtered_sites:
-            filtered_sites.remove(folder)
-        # else:
-        #     print("folder", folder)
-    print("filterd len", len(filtered_sites))
-    print(filtered_sites[:100])
-    with open(os.getcwd() + "/missing_sizes_websites.txt", "w") as f:
-        for site in filtered_sites:
-            f.write(site + "\n")
-    exit(0)
-
 def filter_results_file(filtered_websites, results_file_path, sep=";", output_path="/CSVs/filtered_data.csv"):
     with open(results_file_path, "r") as f:
         c = []
@@ -688,40 +647,34 @@ def get_col_csv(filepath, col_index, sep=";"):
             temp.append(l.split(sep)[col_index])
     return np.array(temp)
 
-def save_object(object, name, path="/local_vars/"):
-    if not os.path.exists(os.getcwd() + path + name):
-        f = open(os.getcwd() + path + name, "w")
-        f.close()
-    with open(os.getcwd() + path + name, "wb") as f:
-        pickled = pickle.dumps(object)
-        pickle.dump(pickled, f)
+# def save_object(object, name, path="/local_vars/"):
+#     if not os.path.exists(os.getcwd() + path + name):
+#         f = open(os.getcwd() + path + name, "w")
+#         f.close()
+#     with open(os.getcwd() + path + name, "wb") as f:
+#         pickled = pickle.dumps(object)
+#         pickle.dump(pickled, f)
 
-def load_object(name, path="/local_vars/"):
-    with open(os.getcwd() + path + name, "rb") as f:
-        pickled = pickle.load(f)
-        return pickle.loads(pickled)
+# def load_object(name, path="/local_vars/"):
+#     with open(os.getcwd() + path + name, "rb") as f:
+#         pickled = pickle.load(f)
+#         return pickle.loads(pickled)
 
-def read_line_seperated_file(filepath):
-    res = []
-    with open(filepath, "r") as f:
-        for l in f:
-            res.append(l.strip())
-    return res
 
 if __name__ == "__main__":
 
     file_interactor = FileInteractor()
     final_sites = file_interactor.load_object_exists("final_sw_paths")
     
-    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csv", sep=";")
+    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csv", sep=",")
     # wa_data = wa_data[wa_data['website'].isin(filtered_sites)]
     # wa_data = wa_data.drop_duplicates(subset=['website'])
 
-    sw_data = pd.read_csv(os.getcwd() + "/CSVs/final_sw (copy).csv", sep=";")
+    sw_data = pd.read_csv(os.getcwd() + "/CSVs/final_sw.csv", sep=";")
     # sw_data = sw_data[sw_data['website'].isin(filtered_sites)]
     sw_data = sw_data.drop_duplicates(subset=['website'])
     print("pwa data len", len(wa_data), "sw data len", len(sw_data))
-    set_sws = load_object("set_sws")
+    set_sws = file_interactor.load_object("set_sws")
 
     features_data = pd.read_csv(os.getcwd() + "/CSVs/final_features.csv", sep=";")
     manifest_data = pd.read_csv(os.getcwd() + "/CSVs/final_manifest.csv", sep=";")
@@ -730,12 +683,10 @@ if __name__ == "__main__":
     lighthouse_data = pd.read_csv(os.getcwd() + "/CSVs/final_lighthouse.csv", sep=";")
 
     print("final sites len", len(final_sites))
-    # non_duplicate_sites = read_line_seperated_file(os.getcwd() + "/final_sites.txt")
     # filter_results_file(filtered_sites, sw_data)
-    # get_sw_results(sw_data, list(set_sws))
-    # get_pwa_results(wa_data, final_sites.keys())
-    # get_json_results(features_data, "Feature")
-    # get_json_results(manifest_data, "Manifest key")
-    valid_linked_sw_paths = file_interactor.load_object_exists("valid_linked_sw_paths")
-    get_audit_results(ylt_data, "ylt", valid_linked_sw_paths.keys())
-    # get_audit_results(lighthouse_data, "Lighthouse")
+    get_sw_results(sw_data, list(set_sws))
+    get_pwa_results(wa_data, final_sites.keys())
+    get_json_results(features_data, "Feature")
+    get_json_results(manifest_data, "Manifest key")
+    get_audit_results(ylt_data, "ylt")
+    get_audit_results(lighthouse_data, "Lighthouse")

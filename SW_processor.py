@@ -1,1784 +1,1021 @@
-# from post_processor import save_object, load_object
+from multiprocessing import process
+from misc import Output, DataAggregator, FileInteractor, URLInteractor
 import os
 import subprocess
-import jsbeautifier
-import time
-import gzip
-from multiprocessing import Lock, Pool, Manager, cpu_count, set_start_method
-from functools import partial
-import json
-import resource
-
-from numpy import append
-from numpy.lib.function_base import diff
-from PWA_processor import load_object, save_object
 import tldextract
+import validators
 import re
-import sys
-import pickle
-# from guesslang import Guess
-import requests
-import post_processor 
-# import DataAggregator, FileInteractor, Output
-import tqdm
-from requests_futures.sessions import FuturesSession
+import json
+import jsbeautifier
+import bs4
+import gzip
+import ast
 
-import asyncio
-import aiohttp
+# TODO add beautify_SWS function of other file
+class SWPostProcessor:
+    def __init__(self, path) -> None:
+        self.sw_base_folder = path
+        self.file_interactor = FileInteractor()
+        self.print_green = Output().print_green
+        self.print_red = Output().print_fail
+        self.data_aggregator = DataAggregator()
+        self.url_interactor = URLInteractor()
+        self.extract = tldextract.TLDExtract()
+    
+    def link_webapps_sws(self, path):
+        webapp_sw_linker = {}
+        with open(path, "r") as f:
+            for l in f:
+                l = l.strip()
+                webapp_sw_linker[l.split(";")[0]] = l.split(";")[1]
+        return webapp_sw_linker
 
-# import grequests
+    def get_static_sw_paths(self, valid_linked_sw_sites):
+        static_sw_paths = self.file_interactor.load_object_exists("static_sw_paths") or set()
+        
+        if not len(static_sw_paths):
+            print("Loading static importscripts")
+            for sw_folder in os.listdir(self.sw_base_folder):
+                for dom in valid_linked_sw_sites:
+                    site = dom
+                    if valid_linked_sw_sites[dom]:
+                        site += "." + valid_linked_sw_sites[dom]
+                    if site in sw_folder:
+                        sw_path = os.path.join(self.sw_base_folder, sw_folder, "beautified.js")
+                        if os.path.exists(sw_path):
+                            content = self.remove_js_comments(open(sw_path, "r").read()).lower()
+                            if "importscripts" in content.lower():
+                                static_sw_paths.add(sw_path)
+                        break
+            self.file_interactor.save_object(static_sw_paths, "static_sw_paths")
 
-# pbar = None
-# file_interactor = FileInteractor()
-# output = Output()
-# load_object = file_interactor.load_object
-# save_object = file_interactor.save_object
+        return static_sw_paths
+    
+    def get_final_sites(self, valid_linked_sw_sites):
+        final_sites = self.file_interactor.load_object_exists("final_sites") or set()
+        final_sw_paths = self.file_interactor.load_object_exists("final_sw_paths") or {}
 
-class URLInteractor:
-    def __init__(self) -> None:
-        self.output = post_processor.Output()
-        self.data_aggregator = post_processor.DataAggregator()
-        self.print_green = self.output.print_green
-        self.print_blue = self.output.print_blue
-        self.print_fail = self.output.print_fail
-        pass
+        if not len(final_sw_paths) or not len(final_sites):
+            final_sites = set()
+            final_sw_paths = {}
+            for dom in valid_linked_sw_sites:
+                if valid_linked_sw_sites[dom] != "":
+                    site = dom + "." + valid_linked_sw_sites[dom]
+                else:
+                    site = dom
 
-    def replace_url(self, url):
-        return url.replace("/", "_")
-        if url.endswith(".js"):
-            url = url.split(".js")[0]
-        return url.replace("/", "_") + "extra_js.js"
+                if site in final_sites:
+                    print("site already in final sites", site)
+                    exit(0)
+                final_sites.add(site)
+                for sw in os.listdir(self.sw_base_folder):
+                    if site == sw or "www." + site == sw:
+                        final_sw_paths[site] = os.path.join(self.sw_base_folder, sw, "beautified.js")
+                        break
 
-    def inverse_replace_url(self, url):
-        return url.replace("_", "/")
+            self.file_interactor.save_object(final_sites, "final_sites")
+            self.file_interactor.save_object(final_sw_paths, "final_sw_paths")
 
-    def strip_urls(self, line, origin_urls=[]):
-        http_start = 0
-        urls = []
-        http_start = line.find("http", http_start)
-        while True:
-            if http_start == -1:
-                break
-            http_end = line.find(line[http_start - 1], http_start)
-            if line[http_start:http_end] not in urls and self.verify_url(line[http_start:http_end]) and line[http_start:http_end] not in origin_urls:
-                urls.append(line[http_start:http_end])
-            http_start = line.find("http", http_start + 1)
+        return final_sites, final_sw_paths
 
-        return urls
+    def get_valid_linked_sw_sites(self, valid_linked_sw_paths):
+        valid_linked_sw_sites = self.file_interactor.load_object_exists("valid_linked_sw_paths_domain_suffix") or {}
 
-    def verify_url(self, url):
-        if not url.startswith("http"):
+        if len(valid_linked_sw_sites) == 0:
+            multiple_domain_sites = {"renault": "fr", "properati": "com.ar", "pinterest": "com", "serene-production-ezycommerce.ezyflight": "se", "michaelpage": "com",\
+                                     "tastemade": "com.br", "mini": "co.uk", "emerald.widgetbot": "io", "underarmour": "co.jp", "chrono24": "com", "edreams": "com",\
+                                     "europcar": "co.uk", "gogocarto": "fr", "clasf": "com.br", "ifood": "com.br", "eventbrite": "co.uk", "fashiola": "co.uk",\
+                                     "avrotros": "nl", "adidas": "co.id", "cuponation": "com.mx", "centrum": "cz", "michelin": "ru", "ebay": "com", "pizzahut": "com.tw",\
+                                     "uol": "com.br", "wego": "co.in", "airbnb": "com", "habitissimo": "es", "supercheapauto": "com.au", "autofun": "co.th",\
+                                     "clearly": "ca", "developers.google": "com", "cloud.google": "com", "wne32.csb" : "app", "firebase.google": "com", "netbet": "de"}
+            domain_blacklist = set(["renault", "pinterest", "centrum", "netbet", "widgetbot"])
+
+            for site in valid_linked_sw_paths:
+                if site.startswith("www."):
+                    site = site[4:]
+                if len(site.split(".")) == 2:
+                    domain = site.split(".")[0]
+                    suffix = site.split(".")[1]
+                else:
+                    ext = self.extract(site)
+                    domain = ext.domain
+                    suffix = ext.suffix
+                    if domain in domain_blacklist:
+                        continue
+                    domain = site.split(domain)[0] + domain
+
+                if domain in multiple_domain_sites:
+                    continue
+                found = False
+                for multiple_domain in multiple_domain_sites:
+                    if domain in multiple_domain and suffix in multiple_domain_sites[multiple_domain]:
+                        found = True
+                        break
+                if found:
+                    continue
+
+                if domain in valid_linked_sw_sites:
+                    valid_linked_sw_sites[domain].add(suffix)
+                    if len(domain.split(".")) > 1:
+                        print("domain already present", site, domain, suffix)
+                else:
+                    valid_linked_sw_sites[domain] = set([suffix])
+            for domain in multiple_domain_sites:
+                if domain in valid_linked_sw_sites:
+                    print("multiple domain already in valid", domain, valid_linked_sw_sites[domain])
+                    exit(0)
+                valid_linked_sw_sites[domain] = [multiple_domain_sites[domain]]
+
+        valid_linked_sw_sites = self.get_single_domains(valid_linked_sw_sites)
+        self.file_interactor.save_object(valid_linked_sw_sites, "valid_linked_sw_sites")
+        return valid_linked_sw_sites
+    
+    def run_ylt(self, website, output_paths):
+        print("Running ylt", website)
+
+        for output_path in output_paths:
+            if os.path.exists(os.path.join(output_path, website)[:-1] + ".json") and os.stat(os.path.join(output_path, website)[:-1] + ".json").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, "www." + website)[:-1] + ".json") and os.stat(os.path.join(output_path, "www." + website)[:-1] + ".json").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, website)[:-1] + ".json.gz") and os.stat(os.path.join(output_path, website)[:-1] + ".json.gz").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, "www." + website)[:-1] + ".json.gz") and os.stat(os.path.join(output_path, "www." + website)[:-1] + ".json.gz").st_size > 0:
+                return True
+        
+        output_path = output_paths[-1]
+        try:
+            subprocess.check_output("yellowlabtools --reporter=json " + "https://" + website + " > " + os.path.join(output_path, website) + ".json", shell=True, timeout=60)
+            self.data_aggregator.compress_json_file(os.path.join(output_path, website) + ".json")
+        except:
+            print("ylt failed for", website)
+            self.remove_and_compress_json(output_path, ext=".gz")
             return False
-        if not len(url.strip("http")) > 5:
-            return False
-        if url.endswith(".mp4") or url.endswith(".jpg") or url.endswith(".png"):
+        self.remove_and_compress_json(output_path, ext=".gz")
+
+        return True
+
+    def run_lighthouse(self, website, output_paths):
+        print("Running lighthouse", website)
+
+        for output_path in output_paths:
+            if os.path.exists(os.path.join(output_path, website)[:-1] + ".json") and os.stat(os.path.join(output_path, website)[:-1] + ".json").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, "www." + website)[:-1] + ".json") and os.stat(os.path.join(output_path, "www." + website)[:-1] + ".json").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, website)[:-1] + ".json.gz") and os.stat(os.path.join(output_path, website)[:-1] + ".json.gz").st_size > 0:
+                return True
+            if os.path.exists(os.path.join(output_path, "www." + website)[:-1] + ".json.gz") and os.stat(os.path.join(output_path, "www." + website)[:-1] + ".json.gz").st_size > 0:
+                return True
+
+        output_path = output_paths[-1]
+        try:
+            subprocess.check_output("lighthouse --chrome-flags='--headless' " + "https://" + website + " --preset=desktop --output=json --output-path=" + output_path + website + ".json", shell=True)
+            self.data_aggregator.compress_json_file(os.path.join(output_path, website) + ".json")
+        except:
+            print("Lighthouse failed for", website)
             return False
         return True
 
-    def get_url_path(self, rootdir, url):
-        for website in os.listdir(rootdir):
-            for subdir, _, files in os.walk(rootdir + website):
-                for file in files:
-                    if file == url:
-                        print("local file", subdir, file, "url", url)
-                        return subdir + "/" + file
-        return ""
-    
-    def get_urls_from_string(self, content, rootdir="", urls=[], all_url_texts=""):
-        for l in content.split("\n"):
-            all_url_texts += l + "\n"
-
-            if "http://" in l or "https://" in l or "importscripts" in l.lower():
-                new_urls = self.strip_urls(l)
-                if new_urls != []:
-                    temp_urls = []
-                    for new_url in new_urls:
-                        if new_url not in urls and self.get_url_path(rootdir, self.replace_url(new_url)) == "":
-                            urls.append(new_url)
-        return urls
-
-    def check_url_redirects(self, url, urls=[], handled_redirect_mapping={}):
-        header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-        'Accept-Encoding': 'none',
-        'Accept-Language': 'en-US,en;q=0.8',
-        'Connection': 'keep-alive'}
-        global pbar
-
-        if not pbar:
-            pbar = tqdm.tqdm(total=100000, mininterval=1)
-        if url not in handled_redirect_mapping:
-            # return handled_redirect_mapping[url]
-            try:
-                # session = requests.Session()
-                # retry = Retry(connect=3, backoff_factor=0.5)
-                # adapter = HTTPAdapter(max_retries=retry)
-                # session.mount('http://', adapter)
-                # session.mount('https://', adapter)
-
-                # responses = session.get(url)
-                responses = requests.get(url, headers=header, timeout=30)
-                # if responses:
-                    # for response in responses.history:
-                        # print(response.url)
-                redirects = [x.url for x in responses.history]
-                # self.print_green(str(urls.index(url)) + " opened url " + url + " " + str(redirects))
-            except Exception as e:
-                pass
-                # self.print_fail(str(urls.index(url)) + " Could not open url " + url)
-                # print(e)
-                # print("failed opening url", url)
-            finally:
-                redirects = [x.url for x in responses.history]
-                append_line(os.getcwd() + "/1mredirects.txt", url + ";" + str(redirects) + "\n")
-                pbar.update(1)
-    
-    def get_url_redirects_async(self, urls):
-        header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-        'Accept-Encoding': 'none',
-        'Accept-Language': 'en-US,en;q=0.8',
-        'Connection': 'keep-alive'}
-        urls = urls[0]
-        session = FuturesSession(max_workers=os.cpu_count() * 2)
-        all_redirects = []
-        responses = [session.get(url, timeout=30, headers=header) for url in urls]
-        # responses = (grequests.get(u, timeout=30, headers=header) for u in urls)
-        # grequests.map(responses)
-        zipped_responses = zip(urls, responses)
-        for base_url, response in zipped_responses:
-            try:
-                result = response.result()
-                redirects = [x.url for x in result.history]
-                all_redirects.append((base_url, redirects))
-                # if len(redirects) != 0:
-                    # url_interactor.print_green(base_url + " " + str(redirects))
-            except Exception as e:
-                # print("Error occured", type(e).__name__)
-                error_name = type(e).__name__
-                # if error_name == "SSLError" or error_name == "ConnectionError" or error_name == "ConnectTimeout":
-                all_redirects.append((base_url, []))
-                # else:
-                    # print("unknown error", base_url, type(e).__name__, e)
-                # print(base_url, "failed")
-                # print(e)
-                pass
-            # url_interactor.print_green(base_url + " " + result.url + " " + str(result.history))
-        for base_url, redirects in all_redirects:
-            append_line(os.getcwd() + "/1mredirects2.txt", base_url + ";" + str(redirects) + "\n")
-
-
-    def process_url(self, url, urls, rootdir, subdir, guess, invalid_urls, website):
-        extract = tldextract.TLDExtract()
-        all_url_texts = ""
-        if url == "http://weblogs.java.net/blog/driscoll/archive/2009/09/08/eval-javascript-global-contex":
-            return ""
-            # , failed_attempts
-        local_url_folder = os.getcwd() + "/last_sws/"
-
-        url_replaced = self.replace_url(url)
-        if len(url_replaced) > 255:
-            print("url too long for file, shortening")
-            url_replaced = url_replaced[0:255]
-        url_file_path = subdir + "/" + url_replaced
-        local_url_content_path = self.get_url_path(local_url_folder, url_replaced)
-
-        if not os.path.exists(url_file_path) and local_url_content_path == "":
-            # if local_url_content_path != "":
-            # #  url in urls_content:
-            #     print(OKGREEN, "url already opened", url, ENDC)
-            #     total_output_content = open(local_url_content_path, "r").read()
-            #     output_file = open(url_file_path, "w")
-            #     output_file.write(total_output_content)
-            #     output_file.close()
-
-            if url in invalid_urls:
-                return ""
-                # , failed_attempts
-            else:
-                #  or os.path.exists(url_file_path)
-                    # , failed_attempts
-                try:
-                    time.sleep(0.5)
-                    self.print_green("opening url " + url + " " + time.time())
-                    u = urlopen(url)
-                except:
-                    invalid_urls.append(url)
-                    self.print_fail("Could not open url" + " " + url)
-                    return "failed opening url"
-                    # , failed_attempts
-                total_output_content = ""
-                try:
-                    decoded_content = u.read().decode('utf-8')
-                except:
-                    self.print_fail("Decoding failed trying unzipping")
-                    try:
-                        data = gzip.decompress(u.read())
-                        decoded_content = data.decode('utf-8')
-                    except:
-                        self.print_fail("Unzipping failed")
-                        return ""
-
-                print("decoded content successfully")
-                if not decoded_content:
-                    return ""
-
-                # if not url.endswith(".js"):
-                    # guess = Guess()
-                # lock.acquire()
-                if len(decoded_content) > 10000000:
-                    lang = guess.language_name(decoded_content[0:10000000])
-                else:
-                    lang = guess.language_name(decoded_content)
-                if extract(url).suffix:
-                    print("lang", lang, "urls split suffix", url.split(extract(url).suffix))
-                
-                if lang != "JavaScript" and extract(url).suffix and not ".js" in url.split(extract(url).suffix)[1:][0]:
-                    
-                    self.print_fail("Url doesnt contain JS " + " " + url + " " + lang + " " + url.split(extract(url).suffix)[1:][0])
-                    no_js_url_path = os.getcwd() + "/no_js_urls.txt"
-                    if not os.path.exists(no_js_url_path):
-                        open(no_js_url_path, "w").close()
-                    with open(no_js_url_path, "a+") as f:
-                        f.write(website + ", " + url + "\n")
-                    if url not in invalid_urls:
-                        if len(invalid_urls) > 10000:
-                            invalid_urls.append(url)
-                            del invalid_urls[0]
-                    # lock.release()
-                    return ""
-                    # , failed_attempts
-                # lock.release()
-                print("guess does contain js or small content")
-
-                beautified_js = jsbeautifier.beautify(decoded_content.lower())
-                print("beautified js")
-                for l in beautified_js.split("\n"):
-                    total_output_content += l + "\n"
-                    all_url_texts += l + "\n"
-                    
-                    # if "http://" in l or "https://" in l:
-                    new_urls = get_urls_from_string(l, rootdir=rootdir)
-                    # new_urls = strip_urls(l, urls)
-                    if new_urls != []:
-                        temp_urls = []
-                        for new_url in new_urls:
-                            if new_url not in urls:
-                                urls.append(new_url)
-                            # print(OKGREEN, "new found urls", temp_urls, "urls", urls, ENDC)
-                            # all_url_texts += process_urls(temp_urls, rootdir, subdir, guess, invalid_urls, failed_attempts)
-
-            # print("Done reading url", url)
-            total_output_content = total_output_content.strip()
-
-            if total_output_content != "" and local_url_content_path == "":
-                with open(url_file_path, "w") as f:
-                    f.write(total_output_content)
-        else:
-            if local_url_content_path != "":
-                local_file_content = open(local_url_content_path, "r").read()
-            else:
-                local_file_content = open(url_file_path, "r").read()
-            
-            if guess.language_name(local_file_content) != "JavaScript":
-                self.print_fail("local file doesnt contain JS " + local_url_content_path + " " + url_file_path)
-                return ""
-            else:
-                self.print_green("local file contains js " +  local_url_content_path)
-
-            urls = get_urls_from_string(local_file_content, rootdir=rootdir, urls=urls, all_url_texts=all_url_texts)
-            
-        return all_url_texts
-        # , failed_attempts
-    
-    def get_content_multiple_urls(self, urls_path_combined, output_folder):
-        file_linker = output_folder + "linker.txt"
-        if not os.path.exists(file_linker):
-            file_handle = open(file_linker, "w")
-            file_handle.close()
-        if not os.path.exists(output_folder):
-            os.mkdir(output_folder)
-
-        for (url, origin_path) in urls_path_combined:
-            imported_files_path = origin_path + "imported_files.txt"
-            if not os.path.exists(imported_files_path):
-                file_handle = open(imported_files_path, "w")
-                file_handle.close()
-            output_file = self.replace_url(url)
-            present = False
-            for subdir, _, files in os.walk(output_folder):
-                if present:
-                    break
-                for file in files:
-                    file_content = open(os.path.join(subdir, file), "r").read()
-                    if file == output_file:
-                        present = True
-                        break
-            if present:
-                if "importscripts(" in file_content.lower():
-                    for l in file_content:
-                        if "importscripts" in l.lower():
-                            print(l)
-                remove_line(imported_files_path, f"{output_file};{file}\n")
-                append_line(imported_files_path, f"{output_file};{file}\n")
-                continue
-            content = self.get_content_url(url)
-            if content:
-                if "importscripts(" in content.lower():
-                    for l in content:
-                        if "importscripts" in l.lower():
-                            print(l)
-                content = jsbeautifier.beautify(content).strip()
-                present = False
-                for subdir, _, files in os.walk(output_folder):
-                    if present:
-                        break
-                    for file in files:
-                        file_content = open(os.path.join(subdir, file), "r").read()
-                        if file_content == content:
-                            present = True
-                            break
-                if not present:
-                    with open(os.path.join(output_folder, output_file), "w") as f:
-                        f.write(content)
-                    # exit(0)
-                else:
-                    if output_file + ";" + file not in open(file_linker, "r").read():
-                        append_line(file_linker, f"{output_file};{file}\n")
-                remove_line(imported_files_path, f"{output_file};{file}\n")
-                append_line(imported_files_path, f"{output_file};{file}\n")
-            else:
-                print(output_file, origin_path, "no content")
-
-        print("get multiple urls", len(urls_path_combined))
-
-    def get_content_url(self, url):
-        header = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36', "Upgrade-Insecure-Requests": "1","DNT": "1","Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language": "en-US,en;q=0.5","Accept-Encoding": "gzip, deflate"}
-        try:
-                # print("trying to open url", url)
-            responses = requests.get(url, headers=header, timeout=60)
-            responses.raise_for_status()
-            content = responses.text
-            return content
-            # self.print_green("opening url 1 " + url + " ")
-        except:
-            try:
-                url = url[len("https://"):]
-                if not url.startswith("www."):
-                    url = "https://www." + url
-                    responses = requests.get(url, headers=header, timeout=60)
-                    responses.raise_for_status()
-                    content = responses.text
-                    return content
-            except Exception as e:
-                print("Could not open url " + url)
-                print("Error", e, e.__class__.__name__)
-        
-    def get_substring_urls(self, urls, substr="", suffix=""):
-        total = []
-        for url in urls:
-            if substr in url and suffix in url:
-                total.append(url)
-        return total
-    
-    def process_urls(self, urls, rootdir, subdir, guess, invalid_urls, website, failed_attempts=0):
-        starttime = time.time()
-        # print("start processing urls", urls, starttime)
-        if failed_attempts == 5:
-            self.print_fail("Too many failed attempts")
-            return ""
-            # , failed_attempts
-
-        all_url_texts = ""
-        # if parallel:
-        #     with Pool(4) as p:
-        #         p.map(partial(process_url, urls=urls, subdir=subdir, urls_content=urls_content, guess=guess), urls)
-        # else:
-        print("urls", urls, len(urls))
-        for url in urls:
-            # , failed_attempts
-            url_texts = self.process_url(url, urls, rootdir, subdir, guess, invalid_urls, website)
-            if url_texts:
-                if url_texts == "failed opening url":
-                    self.print_fail("Failed attempts: " + failed_attempts)
-                    failed_attempts += 1
-                    if failed_attempts == 5:
-                        return all_url_texts
-                        # , failed_attempts
-                else:
-                    all_url_texts += url_texts
-            
-
-        if time.time() - starttime > 5:
-            self.print_green("Done processing urls " + time.time() - starttime + " " + urls)
-        return all_url_texts
-        # , failed_attempts
-    
-    def get_js_urls(self, file, rootdir, subdir, guess, invalid_urls, website):
-        # TODO: check wat er mis is
-        file_urls = []
-        print("processing urls", subdir, file)
-        for l in open(subdir + "/" + file, "r"):
-            if not "beautified" in file:
-                # print("beautifying file", file)
-                try:
-                    l = jsbeautifier.beautify(l.lower())
-                except:
-                    self.print_fail("beautifying went wrong " + l)
-            
-            # TODO uncomment
-            # URLInteractor.(l, rootdir=rootdir, urls=file_urls)
-        
-            # if "http://" in l or "https://" in l:
-            #     # print("potentially new urls from origin", file, website, subdir, l[:1000])
-            #     new_urls = strip_urls(l)
-            #     # print("new urls", new_urls)
-            #     for url in new_urls:
-            #         if url not in file_urls:
-            #             file_urls.append(url)
-
-        if file_urls != []:
-            # Recursively find and obtain all text of the urls found in the file and subsequent file_urls
-            all_url_texts = self.process_urls(file_urls, rootdir, subdir, guess, invalid_urls, website)
-            return all_url_texts
-
-        return ""
-
-
-def strip_events(line):
-    events = []
-    event_start = 0
-    listener = "addeventlistener"
-    event_start = line.find(listener, event_start)
-    while True:
-        if event_start == -1:
-            break
-
-        event_start = event_start + len(listener) + 1
-
-        if event_start + 1 <= len(line):
-            event_end = line.find(line[event_start], event_start + 1)
-        else:
-            break
-        if line[event_start:event_end] and event_start + 1 != event_end:
-            events.append(line[event_start + 1:event_end])
-        
-        event_start = line.find(listener, event_start + 1)
-
-    return events
-
-class Filters:
-    def __init__(self) -> None:
-        pass
-
-    def get_file_events(self, file_content):
-        events = []
-        # file_content = jsbeautifier.beautify(file_content)
-        for l in file_content.split("\n"):
-            l = l.lower()
-            # print("line", l)
-            # if len(l) > 150:
-            #     # print("file event l", l)
-            #     l = jsbeautifier.beautify(l.lower())
-            events_check = ["install", "activate", "message", "fetch", "sync", "push", "notificationclick", "notificationclose", "canmakepayment", "paymentrequest", "message", "messageerror"]
-            # for event_check in events_check:
-            if "addeventlistener" in l:
-                potential_events = strip_events(l)
-                for event in potential_events:
-                    if event in events_check:
-                        events.append(event)
-                # print(OKGREEN, "event line", sub_l, "'start","end'", sub_l.split("addeventlistener"), ENDC)
-                    
-        return events
-
-def bytes_in_string(s):
-    return len(s.encode('utf-8'))
-
-def get_size_file_path(path):
-    all_contents = ""
-    for subdir, _, files in os.walk(path):
-        for file in files:
-            all_contents += open(subdir + "/" + file, "r").read()
-    return bytes_in_string(all_contents)
-
-def process_website(website, rootdir, websites_data, output_file_path, count):
-    sys.setrecursionlimit(1000000)
-    # if count == 5:
-    #     return
-    # sample_sites = ["www.pinterest.com", "www.oracle.com", "www.amazon.in", "www.aliexpress.com", "www.ebay.com", "soundcloud.com", "vk.com", "www.tumblr.com", "www.office.com", "twitter.com"]
-    # sample_sites = ["www.aliexpress.com"]
-
-    # if not website in sample_sites:
-    #         return
-    print("processing website", website)
-    all_js = ""
-    for subdir, _, files in os.walk(rootdir + website):
-        starttime = time.time()
-        for file in files:
-            content = open(subdir + "/" + file, "r").read()
-            language = guess.language_name(content)
-            if language == "JavaScript" or language == "TypeScript" or os.stat(subdir + "/" + file).st_size < 1000:
-                if "beautified" in file or "http" in file:
-                    print("js / ts found or small file", file, os.stat(subdir + "/" + file).st_size)
-                    for l in content.split("\n"):
-                        if l not in all_js:
-                            all_js += l + "\n"
-            else:
-                print("no js found", file)
-            # if file.endswith(".js") and "beautified" in file or "extra_js" in file:
-                # all_js += 
-                # print("file", file)
-    # print("total opening time", time.time() - starttime)
-    # print("len all js", len(all_js))
-    # exit(0)
-    temp_js_path = subdir + "/all_js.js"
-    temp_js_file = open(temp_js_path, "w")
-    temp_js_file.write(all_js)
-    temp_js_file.close()
-
-    starttime = time.time()
-    print("running lizard", temp_js_path, sys.getsizeof(all_js))
-    try:
-        output = subprocess.check_output("lizard -l js " + temp_js_path , shell=True)
-    except subprocess.CalledProcessError as exc:
-        output = exc.output
-
-    ccns = []
-    for l in output.decode().split("\n"):
-        # if avg:
-        #     print("lizard", l)
-        if "all_js" in l:
-            if l.split()[1].isdigit():
-                ccns.append(l.split()[1])
-
-    output = subprocess.check_output("ohcount/bin/ohcount -i " + temp_js_path , shell=True)
-    loc = 0
-    for l in output.decode().split("\n"):
-        if l.startswith("javascript"):
-            loc += int(l.split()[1])
-
-    os.remove(temp_js_path)
-
-    bytes_all_js = bytes_in_string(all_js)
-    events = get_file_events(all_js)
-    output = subprocess.check_output("cd " + rootdir + website + " && ls", shell=True)
-    SW_count = 0
-    for l in output.decode().split("\n"):
-        # print("sws count", l)
-        if l and not l.startswith("http") and "beautified" not in l and "requests" not in l and "features.json" not in l and "manifest" not in l:
-            SW_count += 1
-    # print("events", events, "SWs", SW_count,  "size", bytes_all_js, "loc", loc)
-   
-    # websites_data[website] = {"SWs": SW_count, "size": bytes_all_js, "events": events, "loc": loc, "ccns": ccns}
-    website_data_file = os.getcwd() + "/CSVs/" + "SW_sep_test.csv"
-    with open(website_data_file, "a+") as f:
-        f.write(f'{website};{SW_count};{bytes_all_js};"{events}";{loc};"{ccns}"\n')
-
-    del all_js
-
-    local_vars = list(locals().items())
-    vars, all_objs = [], []
-    for var, obj in local_vars:
-        vars.append(sys.getsizeof(obj))
-        all_objs.append(obj)
-        # print("var sizes", var, sys.getsizeof(obj))
-    print("biggest opbject", max(vars))
-    print("vars", vars)
-    # print("size all vars", all_objs[vars.index(max(vars))])
-    # output_file = open(output_file_path, "w")
-    # output_file.write(f'{website}, {SW_count}, {bytes_all_js}, "{events}", {loc}, "{ccns}"\n')
-    # output_file.close()
-
-    # count += 1
-
-
-# def get_all_js(website, rootdir):
-#     import guesslang
-#     guess = guesslang.Guess()
-
-#     # import random
-#     # time.sleep(random.randint(1,10))
-
-#     # lock.acquire()
-#     # import sys
-#     # import objgraph
-#     # print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-#     # print(objgraph.show_most_common_types())
-#     # local_vars = list(locals().items())
-#     # for var, obj in local_vars:
-#     #     print(var, sys.getsizeof(obj))
-#     # print([(key, value) for key, value in globals().items()])
-#     # print("rootdir", len(os.listdir(rootdir)))
-#     # print(website, "acq lock")
-
-#     # lang = guess.language_name("<DOCTYPE html>")
-#     # print(website, "made guess", lang)
-
-#     # lock.release()
-
-#     print("Getting JS of", website, "...", time.time())
-
-#     # sample_sites = ["www.pinterest.com", "www.oracle.com", "www.amazon.in", "www.aliexpress.com", "www.ebay.com", "soundcloud.com", "vk.com", "www.tumblr.com", "www.office.com", "twitter.com"]
-#     # if not website in sample_sites:
-#     #     continue
-
-#     # print("get size file path", get_size_file_path(rootdir + website))
-#     # if get_size_file_path(rootdir + website) > 1 * 10**6:
-#     #     print(FAIL, "skipping", website, ENDC)
-#     #     continue
-#     # starttime = time.time()
-#     for subdir, _, files in os.walk(rootdir + website):
-#         for file in files:
-#             if "extra_js" in file or "all_js" in file or "beautified" not in file:
-#                 continue
-#             extra_js_path = subdir + "/" + file.split(".")[0] + "extra_js.js"
-#             if not os.path.exists(extra_js_path):
-#                 print("getting js for file", file)
-#                 get_js_urls(file, rootdir, subdir, guess)
-#     del guess
-    # print("first loop time", time.time() - starttime)
-
-# def populate_urls_content(rootdir, urls_content):
-#     for website in os.listdir(rootdir):
-#         for subdir, _, files in os.walk(rootdir + website):
-#             # print("populating urls content for", subdir)
-
-#             for file in files:
-#                 file_content = ""
-#                 with open(subdir + "/" + file, "r") as f:
-#                     for line in f:
-#                         file_content += line
-#                 urls_content[file] = file_content
-
-def init(l):
-    global lock
-    lock = l
-
-def process_SWs():
-    totaltime = time.time()
-    csv_folder_path = os.getcwd() + "/CSVs/"
-    website_data_file = csv_folder_path + "SW_diff_2.csv"
-    progress_file_path = os.getcwd() + "/progress.txt"
-    invalid_urls_file = os.getcwd() + "/invalid.txt"
-    missing_manifest_file = os.getcwd() + "/missingManifest.txt"
-    missing_requests_file = os.getcwd() + "/missingRequests.txt"
-    missing_features_file = os.getcwd() + "/missingFeatures.txt"
-
-    if not os.path.isdir(csv_folder_path):
-        os.mkdir(csv_folder_path)
-
-    if not os.path.exists(website_data_file):
-        website_data_file_path = open(website_data_file, "w")
-        website_data_file_path.write("name;SWs amount;size;events;loc;ccns\n")
-        website_data_file_path.close()
-
-    rootdir = os.getcwd() + "/last_sws/"
-
-    diff_file = os.getcwd() + "/diff_2.txt"
-
-    man = Manager()
-    websites_data = man.dict()
-    # urls_content = man.dict()
-    invalid_urls = man.list([])
-
-    # populate_urls_content(rootdir, urls_content)
-    
-    website_count, invalid_urls_count = 0, 0
-    import threading
-    l = multiprocessing.Lock()
-    init(l)
-    # guess = Guess()
-    
-    # pool = multiprocessing.Pool(processes=1, maxtasksperchild=10, initializer=init, initargs=(l,))
-    if not os.path.exists(website_data_file):
-        open(website_data_file, "w").close()
-    if not os.path.exists(progress_file_path):
-        # 
-        open(progress_file_path, "w").close()
-    if not os.path.exists(invalid_urls_file):
-        open(invalid_urls_file, "w").close()
-    if not os.path.exists(missing_manifest_file):
-        open(missing_manifest_file, "w").close()
-    if not os.path.exists(missing_requests_file):
-        open(missing_requests_file, "w").close()
-    if not os.path.exists(missing_features_file):
-        open(missing_features_file, "w").close()
-
-    guess = guesslang.Guess()
-    
-    # with open(invalid_urls_file, "r") as f:
-    #     for l in f:
-    #         invalid_urls.append(l.strip())
-
-    missing_manifest = []
-    with open(missing_manifest_file, "r") as f:
-        for l in f:
-            missing_manifest.append(l.strip())
-    
-    diff_websites = []
-    with open(diff_file, "r") as f:
-    # for website in os.listdir(diff_dir):
-        for l in f:
-            diff_websites.append(l.strip())
-
-    for website in os.listdir(rootdir):
-        if os.path.exists(rootdir + website + "/manifestError") and website not in missing_manifest:
-            # print(website, "doesnt have proper manifest")
-            with open(missing_manifest_file, "a+") as f:
-                f.write(website + "\n")
-        # if os.path.exists(rootdir + website + "/requests"):
-        #     if os.path.getsize(rootdir + website + "/requests") == 0:
-                # print(website, "requests has size 0")
-        # if os.path.exists(rootdir + website + "/requests"):
-            # if os.path.getsize(rootdir + website + "/features.json") == 0:
-                # print(website, "features has size 0")
-            # else:
-                # print(website, "features doesnt exist")
-
-    websites_handled = []
-
-    # with open(progress_file_path, "r") as f:
-    #     for l in f:
-    #         if l.strip() not in websites_handled:
-    #             websites_handled.append(l.strip("\n"))
-    print("websites handled len", len(websites_handled))
-    # exit(0)
-    # pool.map(partial(get_all_js, rootdir=rootdir), os.listdir(rootdir)[0:1000])
-
-    not_handled = []
-    cheaptickets = False
-    for website in os.listdir(rootdir):
-
-        # if "kuwaitjobs" not in website:
-        #     continue
-        # else:
-        #     for subdir, _, files in os.walk(rootdir + website):
-        #         for file in files:
-        #             # print(website, "getting js for file", file)
-
-        #             if "extra_js" in file or "all_js" in file or "beautified" not in file:
-        #                 continue
-        #             extra_js_path = subdir + "/" + file.split(".")[0] + "extra_js.js"
-        #             if not os.path.exists(extra_js_path):
-        #                 print(website, "getting js for file", file)
-        #                 get_js_urls(file, rootdir, subdir, guess, invalid_urls, website)
-            # exit(0)
-        # if website_count % 10 == 0:
-        #     with open(invalid_urls_file, "a+") as f:
-        #         if len(invalid_urls) > 0:
-        #             for i in range(invalid_urls_count, len(invalid_urls)):
-        #                 invalid_url = invalid_urls[i]
-        #                 f.write(invalid_url + "\n")
-        #             invalid_urls_count += len(invalid_urls) - 1
-        # if "smolnews" in website:
-        #     print("smolnews", website in websites_handled)
-        # if "cheaptickets.ch" in website:
-        #     cheaptickets = True
-        if website == "www.whalestreet.xyz":
-            continue
-        if website not in websites_handled:
-
-            # print("getting js of", website, rootdir + website)
-            # import sys
-            # import objgraph
-            # print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-            # print(objgraph.show_most_common_types())
-            # local_vars = list(locals().items())
-            # for var, obj in local_vars:
-            #     print(var, sys.getsizeof(obj))
-            # print([(key, value) for key, value in globals().items()])
-
-            for subdir, _, files in os.walk(rootdir + website):
-                for file in files:
-                    # print(website, "getting js for file", file)
-
-                    if "extra_js" in file or "all_js" in file or "beautified" not in file:
-                        continue
-                    extra_js_path = subdir + "/" + file.split(".")[0] + "extra_js.js"
-                    if not os.path.exists(extra_js_path):
-                        print(website, "getting js for file", file)
-                        get_js_urls(file, rootdir, subdir, guess, invalid_urls, website)
-            with open(progress_file_path, "a+") as f:
-                f.write(website + "\n")
-
-            website_count += 1
-        
-        else:
-            not_handled.append(website)
-
-    print("skipped", len(not_handled), "websites")
-    not_handled = []
-    exit(0)
-
-    no_ccns = []
-    websites_processed = []
-    with open(website_data_file, "r") as f:
-        for l in f:
-            if l.split(",")[0] != "name":
-                print("websites opened", l.split(";")[0])
-                websites_processed.append(l.split(";")[0])
-                if l.strip().split(";")[5] == "[]":
-                    no_ccns.append(website)
-    print(no_ccns, len(no_ccns))
-
-    # print(data['ccns'].astype('int32'))
-    # exit(1)
-
-    for website in os.listdir(rootdir):
-        if website not in websites_processed and website in diff_websites:
-            print(website, "getting measurements")
-            # or
-
-            process_website(website, rootdir=rootdir, websites_data=websites_data, output_file_path=website_data_file, count=0)
-            
-            # with open(website_data_file, "a+") as f:
-            #     f.write(f'{website}, {websites_data[website]["SWs"]}, {websites_data[website]["size"]}, "{websites_data[website]["events"]}", {websites_data[website]["loc"]}, "{websites_data[website]["ccns"]}"\n')
-            #     websites_data = {}
-            # exit(0)
-        else:
-            not_handled.append(website)
-            print(website, "already processed")
-        
-    print("skipped processing", len(not_handled), "websites")
-
-    # website_data_file.close()
-    # pool.map(partial(process_website, rootdir=rootdir, websites_data=websites_data, website_data_file=website_data_file, count=count), os.listdir(rootdir))
-    # with Pool(4) as p:
-    #     p.map(, )
-
-        
-        # sample = False
-
-        # for sample_site in sample_sites:
-        #     if sample_site in website:
-        #         sample = True
-        # if not sample:
-        #     continue
-        # count += 1
-        # exit(0)
-        # if count == 5:
-            # break     
-
-    # with open(website_data_file.split(".csv")[0] + ".json", 'w') as fp:
-    #     dump = json.dumps(dict(websites_data))
-    #     print("json dump", dump)
-    #     fp.write(dump)
-
-    # website_data_file.close()
-    # print("all websites data", websites_data, count)
-    print("total time", time.time() - totaltime, "total websites analysed", len(websites_handled))
-    # for website in websites_data:
-
-
-def check_files():
-    rootdir = os.getcwd() + "/second_sws/"
-    for website in os.listdir(rootdir):
-        for subdir, _, files in os.walk(rootdir + website):
-            for file in files:
-                if "extra_js" in file and "manifest" in file:
-                    print("found manifest", subdir + "/" + file)
-# check_files()
-
-def cleanup():
-    rootdir = os.getcwd() + "/SWs/last_sws_desktop_manifests/"
-    for website in os.listdir(rootdir):
-        for subdir, _, files in os.walk(rootdir + website):
-            for file in files:
-                # if "manifest" not in file and "beautified" not in file and "features.json" not in file and "requests" not in file:
-                if "imported_files.txt" in file:
-                # if file.endswith("js") and "beautified" not in file:
-                    # if "extra_js" in file or "all_js" in file:
-                    print("removing", subdir + "/" + file)
-                    os.remove(subdir + "/" + file)
-            print()
-
-def filter_double_lines(path):
-    lines = []
-    with open(path, "r") as f:
-        for l in f:
-            if l not in lines:
-                lines.append(l)
-    print("lines length", len(lines))
-    with open(path, "w") as f:
-        for l in lines:
-            f.write(l)
-
-# filter_double_lines(os.getcwd() + "/invalid.txt")
-
-def replace_extra_js(path):
-    content = ""
-    with open(path, "r") as f:
-        content = f.read()
-    if path.endswith("extra_js"):
-        new_path = path.split("extra_js")[0]
-        if new_path.endswith(".js"):
-
-            new_path = new_path.strip(".js") + "extra_js.js"
-            print("content", len(content))
-            with open(new_path, "w") as f:
-                f.write(content)
-            print("checking path", path)
-            print("new_path", new_path)
-
-            return new_path
-
-    return ""
-
-def replace_files_subdir(rootdir):
-    for website in os.listdir(rootdir):
-        for subdir, _, files in os.walk(rootdir + website):
-            for file in files:
-                if replace_extra_js(subdir + "/" + file) != "":
-                    os.remove(subdir + "/" + file)
-
-# replace_files_subdir(os.getcwd() + "/first_sws/SWsbrowser/")
-
-def folders_to_txt(rootdir, output_file_path):
-    with open(output_file_path, "a+") as f:
-        for website in os.listdir(rootdir):
-            f.write(website + "\n")
-
-# folders_to_txt(os.getcwd() + "/last_sws/", os.getcwd() + "/last_sws.txt")
-
-def get_urls_from_string(content, website):
-    import urlextract
-    from urlextract import URLExtract
-    extractor = URLExtract()
-    url_count = 0
-    urls = set()
-    startlen = 0
-    pattern = r"A-Za-z0-9-._~!$&\'()\*\+,;=:@/\?"
-    endings = [".css", ".html"]
-    for l in content:
-        temp = extractor.find_urls(l)
-        if len(temp) != 0:
-            # print(l)
-            for url in temp:
-                urls.add((url, False))
-        if "importscripts(" in l.lower():
-            start = l.lower().find("importscripts(")
-            # print("importscripts line", l)
-            startlen = len(urls)
-            while start != -1:
-                end = l.lower().find(")", start)
-                urls_temp = [re.sub(pattern, "", x) for x in l.lower()[start + len("importscripts("):end-1].split(",")]
-                # print("urlstemp", urls_temp)
-                # urls_temp = [x.replace("';)(", "").replace('"', "") for x in l.lower()[start + len("importscripts("):end].split(",")]
-                for url in urls_temp:
-                    urls_ending = [url.endswith(ending) for ending in endings]
-                    if True in urls_ending:
-                        continue
-                    if "http" not in url:
-                        url = "https://" + website + "/" + url
-                    if url[0] == "'":
-                        url = url[1:len(url)]
-                    if url[len(url) - 1] == "'":
-                        url = url[0:len(url) - 1]
-                    print("import url", url, l)
-                    urls.add((url, True))
-                start = l.lower().find("importscripts(", end)
-        continue
-
-        if "http" in l:
-            urls_re = re.findall(r'(https?://\S+)', l)
-            urls_re = re.findall(r'(https?://[^\s]+)', l)
-            # urls_re = re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', l)
-            if urls_re:
-                print("urls re line", l, urls_re)
-                # urls_re = [x.strip(",';").strip('"') for x in urls_re]
-                urls_re = [re.sub(pattern, "", x) for x in urls_re]
-                print("urls re line 2", l, urls_re)
-                for url in urls_re:
-                    if '"' in url:
-                        url = url.split('"')[0]
-                    urls_ending = [url.endswith(ending) for ending in endings]
-                    if True in urls_ending:
-                        continue
-                    print("url re before", url)
-                    # if "http" not in url:
-                    #     url = "https://" + website + "/" + url
-                    if url and url[0] == "'":
-                        url = url[1:len(url)]
-                    if url and url[len(url) - 1] == "'":
-                        url = url[0:len(url) - 1]
-                    print("url re", url)
-                    urls.add(url)
-            url_count += len(urls)
-    # if urls != set():
-    #     print("all urls", urls)
-    return urls
-
-def get_local_content(rootdirs, filename):
-    for rootdir in rootdirs:
-        for subfolder in os.listdir(rootdir):
-            for subdir, _, files in os.walk(rootdir + subfolder):
-                for file in files:
-                    # if subfolder == "www.ineventos.com":
-                    #     print(file, "\n", filename, file == filename)
-                    if file == filename or len(filename) > 255 and file in filename:
-                        content = ""
-                        with open(subdir + "/" + file, "r") as f:
-                            content = f.read()
-                        return content
-    return ""
-
-def read_line_seperated_file(filepath):
-    res = []
-    with open(filepath, "r") as f:
-        for l in f:
-            res.append(l.strip())
-    return res
-
-
-def append_line(filepath, line):
-    with open(filepath, "a+") as f:
-        f.write(line)
-
-def remove_line(filepath, line):
-    read_file_handle = open(filepath, "r")
-    content = read_file_handle.read()
-    prev_content_length = len(content)
-    while line in content:
-        content = content.replace(line, "")
-
-    if prev_content_length != len(content):
-        with open (filepath, "w") as f:
-            f.write(content.strip() + "\n")
-
-def remove_line_substring(filepath, present_strings):
-    read_file_handle = open(filepath, "r")
-    content = read_file_handle.read()
-    removed = False
-    for line in content.split("\n"):
-        valid = True
-        for present_string in present_strings:
-            if present_string not in line:
-                valid = False
+    def check_lighthouse_score_file(self, file_path):
+        _, scores = self.get_lighthouse_scores(file_path)
+        if None in scores:
+            return False
+        return True
+
+    def check_ylt_score_file(self, file_path):
+        _, scores = self.get_ylt_scores(file_path)
+        if None in scores or not len(scores):
+            return False
+        return True
+
+    def get_missing_audit(self, site, audit_sites, scores_folders, audit_func, audit_file_check_func, *audit_args):
+        found = False
+        for score_folder in scores_folders:
+            if found:
                 break
-        if valid:
-            removed = True
-            remove_line(filepath, line)
-            content = read_file_handle.read()
-    # if not removed:
-        # print("didnt remove line", line, "present strings", present_strings)
-
-def scrape_website_js(website, rootdirs, invalid_urls, handled_sites):
-    print(OKBLUE, "scraping", website, len(handled_sites), ENDC)
-    invalid_urls_file = os.getcwd() + "/invalid.txt"
-    accumulated_content = ""
-    guess = guesslang.Guess()
-
-    header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-       'Accept-Encoding': 'none',
-       'Accept-Language': 'en-US,en;q=0.8',
-       'Connection': 'keep-alive'}
-    if website in handled_sites:
-        print(website, "already handled")
-        return
-    for subdir, _, files in os.walk(rootdirs[0] + website):
-
-        for file in files:
-            if "beautified" in file:
-                print(website, file)
-                urls = []
-                with open(subdir + "/" + file, "r") as f:
-                    accumulated_content += f.read() + "\n"
-                    urls = get_urls_from_string(accumulated_content.split("\n"), website)
-
-                new_urls = set()
-                for (url, importScript) in urls:
-                    if url in invalid_urls:
-                        # print(FAIL, "invalid url", url, ENDC)
-                        continue
-                    # print("handling url", url)
-                    content = get_local_content(rootdirs, replace_url(url).replace("'", "").strip())
-                    save_locally = False
-                    if content == "":
-                        try:
-                            time.sleep(0.5)
-                            if not url.startswith("https://"):
-                                url = "https://" + url
-                            response = requests.get(url, timeout=60, headers=header)
-                            content = response.text
-                        except Exception as e:
-                            invalid_urls.add(url)
-                            append_line(invalid_urls_file, url)
-                            # print("opening url", url, "failed")
-                            # print(e)
-                        # try:
-                        #     content = u.read().decode('utf-8')
-                        # except:
-                        #     # print(FAIL, "decoding failed, trying unzipping", ENDC)
-                        #     try:
-                        #         data = gzip.decompress(u.read())
-                        #         content = data.decode('utf-8')
-                        #     except:
-                        #         print(FAIL, "unzipping failed", url, ENDC)
-
-                        # print("opened url succesfully", url, len(content))
-                        if len(content) > 10000000:
-                            lang = guess.language_name(content[0:10000000])
-                        else:
-                            lang = guess.language_name(content)
-
-                        if importScript or not importScript and lang == "JavaScript":
-                            if len(content) != 0 and content not in accumulated_content:
-                                save_locally = True
-                            # elif len(content) != 0 and content in accumulated_content:
-                                # print("already in content", url)
-                    else:
-                        # print("local file", url)
-                        if len(content) != 0 and content not in accumulated_content:
-                            save_locally = True
-                        # elif len(content) != 0 and content in accumulated_content:
-                            # print("already in content", url)
-
-                        # print("found js", content)
-                    if save_locally:
-                        content = jsbeautifier.beautify(content)
-                        print(OKGREEN, "saving content", url, len(content), ENDC)
-                        local_path = subdir + "/" + replace_url(url).replace("'", "")
-                        if len(local_path) > 255:
-                            local_path = local_path[:255]
-
-                        if not os.path.exists(local_path):
-                            f = open(local_path, "w")
-                            f.close()
-                        with open(local_path, "w") as f:
-                            f.write(content)
-                        
-                        accumulated_content += content + "\n"
-
-                    # print("content len", len(content), content in accumulated_content, importScript)
-                    if len(content) != 0:
-                        # print(OKGREEN, "found non 0 content", len(content), website, content in accumulated_content, ENDC)
-
-                        temp_urls = get_urls_from_string(content, website)
-                        for (temp_url, temp_import_script) in temp_urls:
-                            if temp_url[0] == "'":
-                                temp_url = temp_url[1:len(temp_url)]
-                            if temp_url[len(temp_url) - 1] == "'":
-                                temp_url = temp_url[0:len(temp_url) - 1]
-
-                            urls.add((temp_url, temp_import_script))
-    handled_sites.add(website)
-    append_line(handled_sites_file, website + "\n")
-    return
-
-if __name__== "__main__":
-    session = FuturesSession(max_workers=50)
-    header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-        'Accept-Encoding': 'none',
-        'Accept-Language': 'en-US,en;q=0.8',
-        'Connection': 'keep-alive'}
-    extract = tldextract.TLDExtract()
-    file_interactor = post_processor.FileInteractor()
-    sw_post_processor = post_processor.SWPostProcessor()
-    data_aggregator = post_processor.DataAggregator()
-    redirect_processing = False
-
-    if len(sys.argv) == 2 and sys.argv[1] == "redirect":
-        redirect_processing = True
-
-    all_redirect_errors = file_interactor.load_object_exists("all_redirect_errors")
-    if not all_redirect_errors:
-        all_redirect_errors = {}
-    print(all_redirect_errors)
-    
-    async def get_redirect_async(url, session):
-        redirects, redirects2 = [], []
-        try:
-            # url = url[0]
-            async with session.get(url=url, allow_redirects=True, timeout=30) as resp:
-                redirects = set([str(x.url) for x in resp.history])
-                redirects.add(str(resp.url))
-                redirects = list(redirects)
-        except Exception as e:
-            if type(e).__name__ not in all_redirect_errors:
-                if type(e).__name__ not in all_redirect_errors:
-                    all_redirect_errors[type(e).__name__] = [url]
-                else:
-                    all_redirect_errors[type(e).__name__].append(url)
-                file_interactor.save_object(all_redirect_errors, "all_redirect_errors")
-            try:
-                if url.startswith("https"):
-                    url = url.strip("https")
-                    url = "http" + url
-                async with session.get(url=url, allow_redirects=True, timeout=30) as resp:
-                    redirects = set([str(x.url) for x in resp.history])
-                    redirects.add(str(resp.url))
-                    redirects = list(redirects)
-                return (url, redirects)
-            except Exception as e2:
-                pass
-            pass
-        return (url, redirects)
-
-    async def url_wrapper_async(urls, unknown_redirects=[], unknown_url="", output_file=os.getcwd() + "/1mredirects.txt"):
-        sem = asyncio.Semaphore(100)
-        async with sem:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True, headers=header) as session:
-                redirects = await asyncio.gather(*[get_redirect_async(url, session) for url in urls])
-                if unknown_url:
-                    print(redirects, unknown_url, unknown_redirects)
-                    overlap = set(redirects[0][1]).intersection(set(unknown_redirects))
-                    final_redirects = redirects[0][1]
-                    if overlap or unknown_url in final_redirects:
-                        if unknown_url not in final_redirects:
-                            final_redirects.append(unknown_url)
-                        append_line(output_file, urls[0] + ";" + str(final_redirects) + "\n")
-                        print("overlap", overlap, redirects)
-                        return overlap
-                return redirects
-
-    set_start_method("forkserver", force=True)
-
-    # file_interactor.combine_file_contents([os.getcwd() + "/1mredirects.txt", os.getcwd() + "/1mredirects2.txt"])
-    # exit(0)
-    
-    usb_sites = file_interactor.load_object_exists("usb_sites")
-    usb_domains_suffix = file_interactor.load_object_exists("usb_domains_suffix") or {}
-    if not usb_sites or not usb_domains_suffix or len(usb_domains_suffix) == 0:
-        usb_sites = set()
-        usb_domains_suffix = {}
-        with open(os.getcwd() + "/usb_contents.txt", "r") as f:
-            for l in f:
-                if l:
-                    site = data_aggregator.string_usb_to_csv(l.strip())
-                    usb_sites.add("https://" + site)
-                    ext = extract(site)
-                    if ext.domain not in usb_domains_suffix:
-                        usb_domains_suffix[ext.domain] = [ext.suffix]
-                    else:
-                        if ext.suffix not in usb_domains_suffix[ext.domain]:
-                            usb_domains_suffix[ext.domain].append(ext.suffix)
-        file_interactor.save_object(usb_sites, "usb_sites")
-        file_interactor.save_object(usb_domains_suffix, "usb_domains_suffix")
-
-    pwa_redirects = file_interactor.load_object_exists("pwa_redirects")
-    pwa_base_redirect_tuples = set()
-    if not pwa_redirects:
-        pwa_redirects = []
-    (pwa_redirects_sites, pwa_redirects_need_handling) = (file_interactor.load_object_exists("pwa_redirects_sites"), set()) or (set(), set())
-    if not pwa_redirects_sites:
-        pwa_redirects_sites = set()
-    for (site, redirects) in pwa_redirects:
-        pwa_redirects_sites.add(site)
-        for redirect in redirects:
-            if (site, redirect) not in pwa_base_redirect_tuples:
-                pwa_base_redirect_tuples.add((site, redirect))
-        # for redirect in redirects:
-            # if "http:" in redirect:
-                # print("pwa redirects", site, redirects)
-    for site in usb_sites:
-        if data_aggregator.string_usb_to_csv(site) not in pwa_redirects_sites:
-            pwa_redirects_need_handling.add(site)
-    print("len pwa need handling", len(pwa_redirects_need_handling), type(pwa_redirects_need_handling) == 'class set')
-
-    if type(pwa_redirects_need_handling) == type(set()):
-        pwa_redirects_need_handling = list(pwa_redirects_need_handling)
-
-    sw_domains_suffix = file_interactor.load_object_exists("sw_domains_suffix") or {}
-    if len(sw_domains_suffix) == 0:
-        prev_subfolder = None
-        for subfolder, _, _ in os.walk(os.getcwd() + "/SWs/last_sws_desktop_manifests/"):
-            if subfolder != prev_subfolder:
-                splitted = subfolder.split("/last_sws_desktop_manifests/")[1]
-                ext = extract(splitted)
-
-                if ext.domain not in sw_domains_suffix:
-                    sw_domains_suffix[ext.domain] = [ext.suffix]
-                else:
-                    if ext.suffix not in sw_domains_suffix[ext.domain]:
-                        sw_domains_suffix[ext.domain].append(ext.suffix)
-                prev_subfolder = subfolder
-        file_interactor.save_object(sw_domains_suffix, "sw_domains_suffix")
-
-    print("len sws domain", len(sw_domains_suffix), "len usb domain", len(usb_domains_suffix))
-    set_sws_domains_suffix = set(sw_domains_suffix)
-    set_usb_domains_suffix = set(usb_domains_suffix)
-
-    set_sws_copy = set_sws_domains_suffix.copy()
-    set_usb_copy = set_usb_domains_suffix.copy()
-
-    set_sws_domains_suffix.difference_update(set_usb_domains_suffix)
-    set_usb_domains_suffix.difference_update(set_sws_copy)
-
-    if len(set_usb_copy) - len(set_usb_domains_suffix) < len(set_sws_copy) - len(set_sws_domains_suffix):
-        smallest_set_domains = set_usb_copy.copy()
-        smallest_set_domains.difference_update(set_usb_domains_suffix)
-    else:
-        smallest_set_domains = set_sws_copy.copy()
-        smallest_set_domains.difference_update(set_sws_domains_suffix)
-
-    print(len(smallest_set_domains), len(set_usb_domains_suffix), len(set_usb_copy), len(set_usb_copy) - len(set_usb_domains_suffix))
-    print("len update sws set", len(set_sws_domains_suffix), "len update usb set", set_usb_domains_suffix)
-
-
-    m1_domain_redirects = file_interactor.load_object_exists("m1_domain_redirects") or {}
-
-    if len(m1_domain_redirects) == 0:
-        with open(os.getcwd() + "/1mredirects.txt", "r") as f:
-            for l in f:
-                l = l.strip()
-                if not l:
-                    continue
-                raw_site, raw_domain_redirects = post_processor.DataAggregator.get_list_comma_seperated_line(l)
-                domain_redirects = []
-                for domain_redirect in raw_domain_redirects:
-                    if domain_redirect:
-                        domain_redirects.append(domain_redirect)
-                if len(domain_redirects) > 0:
-                    site = extract(raw_site).domain + "." + extract(raw_site).suffix
-                    if site not in m1_domain_redirects:
-                        m1_domain_redirects[site] = set(domain_redirects)
-                    else:
-                        for redirect in domain_redirects:
-                            m1_domain_redirects[site].add(redirect)
-
-        file_interactor.save_object(m1_domain_redirects, "m1_domain_redirects")
-
-    m1_domain_redirects_extracts = {}
-    for site in m1_domain_redirects:
-        ext = extract(site)
-        if ext.domain in m1_domain_redirects_extracts:
-            m1_domain_redirects_extracts[ext.domain].append(ext.suffix)
-        else:
-            m1_domain_redirects_extracts[ext.domain] = [ext.suffix]
-    file_interactor.save_object(m1_domain_redirects_extracts, "m1_domain_redirects_extracts")
-    sw_site_domain_redirects = file_interactor.load_object_exists("sw_site_domain_redirects") or {}
-    
-    # domains_overlap_redirects = set()
-    # handled = set()
-    # length = len(m1_domain_redirects)
-    # for site in m1_domain_redirects:
-    #     print(len(handled) / length)
-    #     redirects_set = set(m1_domain_redirects[site])
-    #     if site in handled:
-    #         continue
-    #     for site2 in m1_domain_redirects:
-    #         if site != site2:
-    #             if (site, site2) in domains_overlap_redirects or (site2, site) in domains_overlap_redirects:
-    #                 continue
-    #             overlap = redirects_set.intersection(set(m1_domain_redirects[site2]))
-    #             if "failed opening url" not in overlap:
-    #                 if len(overlap) > 0:
-    #                     print(site, site2, len(overlap), overlap)
-    #                     domains_overlap_redirects.add((site, site2))
-        
-    #     handled.add(site)
-
-    #     file_interactor.save_object(domains_overlap_redirects, "domains_overlap_redirects")
-    #     file_interactor.save_object(handled, "handled")
-
-    # with open(os.getcwd() + "/1mredirects.txt", "r") as f:
-    #     for l in f:
-    #         l = l.strip()
-    #         raw_site, raw_domain_redirects = post_processor.DataAggregator.get_list_comma_seperated_line(l)
-
-    usb_domains_suffix_redirects = file_interactor.load_object_exists("usb_domains_suffix_redirects")
-    if len(usb_domains_suffix_redirects) == 0:
-        for domain in set_usb_domains_suffix:
-            if len(usb_domains_suffix[domain]) != 1:
-                highest_suffix = sw_post_processor.get_highest_suffix(domain, usb_domains_suffix[domain])
-                if highest_suffix:
-                    usb_domains_suffix[domain] = [highest_suffix]
-                else:
-                    continue
-            else:
-                highest_suffix = usb_domains_suffix[domain][0]
-
-            if domain in usb_domains_suffix_redirects:
-                continue
-
-            if domain + "." + highest_suffix in m1_domain_redirects:
-                if "failed opening url" not in m1_domain_redirects[domain + "." + highest_suffix]:
-                    usb_domains_suffix_redirects[domain + "." + highest_suffix] = m1_domain_redirects[domain + "." + highest_suffix]
-            else:
-                for m1_domain in m1_domain_redirects:
-                    if "failed opening url" not in m1_domain_redirects[m1_domain]:
-                        for redirect in m1_domain_redirects[m1_domain]:
-                            if domain + "." + highest_suffix in redirect:
-                                if domain + "." + highest_suffix in usb_domains_suffix_redirects:
-                                    for redirect in m1_domain_redirects[m1_domain]:
-                                        usb_domains_suffix_redirects[m1_domain + "." + highest_suffix].add(redirect)
-                                    break
-                                else:
-                                    usb_domains_suffix_redirects[m1_domain + "." + highest_suffix] = m1_domain_redirects[m1_domain]
-
-    sw_domains_suffix_redirects = file_interactor.load_object_exists("sw_domains_suffix_redirects")
-    print("usb_domains_suffix_redirects", len(usb_domains_suffix_redirects))
-
-    test_domain = "dpgmedia"
-    for domain in sw_domains_suffix:
-        if test_domain in domain:
-            highest_suffix = sw_post_processor.get_highest_suffix(domain, sw_domains_suffix[domain])
-            print(test_domain, "test domain", domain, sw_domains_suffix[domain], highest_suffix)
-
-    for domain in m1_domain_redirects:
-        if test_domain in domain:
-            print(test_domain, "m1 test domain", domain, m1_domain_redirects[domain])
-            highest_suffix = sw_post_processor.get_highest_suffix(domain, m1_domain_redirects[domain])
-            print("highest suffix", highest_suffix)
-    # exit(0)
-    # sw_domains_suffix_redirects = {}
-
-    if len(sw_domains_suffix_redirects) == 0:
-        for domain in sw_domains_suffix:
-            if len(sw_domains_suffix[domain]) != 1:
-                highest_suffix = sw_post_processor.get_highest_suffix(domain, sw_domains_suffix[domain])
-                if highest_suffix:
-                    sw_domains_suffix[domain] = [highest_suffix]
-                else:
-                    continue
-            else:
-                highest_suffix = sw_domains_suffix[domain][0]
-
-            if domain in sw_domains_suffix_redirects or not highest_suffix or highest_suffix == "":
-                continue
-
-            if domain + "." + highest_suffix in m1_domain_redirects:
-                if "iol" in domain:
-                    print("iol in sw domain", domain, "highest suffix", highest_suffix, "m1 domain", domain + "." + highest_suffix, "redirects", m1_domain_redirects[domain + "." + highest_suffix])
-                if "failed opening url" not in m1_domain_redirects[domain + "." + highest_suffix]:
-                    sw_domains_suffix_redirects[domain + "." + highest_suffix] = m1_domain_redirects[domain + "." + highest_suffix]
-            else:
-                for m1_domain in m1_domain_redirects:
-                    if not m1_domain:
-                        continue
-                    if m1_domain == "":
-                        continue
-                    if "failed opening url" in m1_domain_redirects[m1_domain]:
-                        m1_domain_redirects[m1_domain].remove("failed opening url")
-                    if len(m1_domain_redirects[m1_domain]) == 0:
-                        continue
-                    for redirect in m1_domain_redirects[m1_domain]:
-                        if domain + "." + highest_suffix in redirect:
-                            if domain + "." + highest_suffix in sw_domains_suffix_redirects:
-
-                                if "iol" in m1_domain:
-                                    print("iol in sw domain", domain, "highest suffix", highest_suffix, "m1 domain", m1_domain, "redirect", redirect)
-                                for redirect in m1_domain_redirects[m1_domain]:
-                                    sw_domains_suffix_redirects[m1_domain + "." + highest_suffix].add(redirect)
-                                break
-                            else:
-                                if "iol" in m1_domain:
-                                    print("iol in sw domain", domain, "highest suffix", highest_suffix, "m1 domain", m1_domain, "redirect", redirect)
-                                sw_domains_suffix_redirects[m1_domain + "." + highest_suffix] = m1_domain_redirects[m1_domain]
-
-    print("sw_domains_suffix_redirects", len(sw_domains_suffix_redirects))
-    # sw_domains_suffix_redirects = file_interactor.load_object_exists("sw_domains_suffix_redirects")
-
-    for usb_site in usb_domains_suffix_redirects:
-        printed = False
-        for sw_site in sw_domains_suffix_redirects:
-            # print(usb_domains_suffix_redirects[usb_site], sw_domains_suffix_redirects[sw_site])
-            overlap = usb_domains_suffix_redirects[usb_site].intersection(sw_domains_suffix_redirects[sw_site])
-            if overlap and not printed:
-                print("overlap", usb_site, "sw site", sw_site, "overlap", overlap)
-                # printed = True
-
-    file_interactor.save_object(usb_domains_suffix_redirects, "usb_domains_suffix_redirects")
-    file_interactor.save_object(sw_domains_suffix_redirects, "sw_domains_suffix_redirects")
-    print("sw_domains_suffix_redirects", len(sw_domains_suffix_redirects))
-    exit(0)
-    if len(sw_site_domain_redirects) > 0:
-        save_object(sw_site_domain_redirects, "sw_site_domain_redirects")
-
-    # TODO: check of missende sites (dus na diff update) te vinden zijn in redirects van elkaar. Desnoods nog filteren met extract domain en suffix, ook per redirect
-    for domain in set_usb_domains_suffix:
-        print("hanlding usb domain", domain)
-        if not domain:
-            continue
-        if len(usb_domains_suffix[domain]) == 1:
-            if usb_domains_suffix[domain][0]:
-                for line in post_processor.FileInteractor.get_lines_from_file(os.getcwd() + "/1mredirects.txt", domain + "." + usb_domains_suffix[domain][0]):
-                    raw_site, raw_domain_redirects = post_processor.DataAggregator.get_list_comma_seperated_line(line)
-                    domain_redirects = []
-                    for domain_redirect in raw_domain_redirects:
-                        if domain_redirect:
-                            domain_redirects.append(domain_redirect)
-                    if len(domain_redirects) > 0:
-                        site = extract(raw_site).domain + "." + extract(raw_site).suffix
-                        print("domain redirects", domain, usb_domains_suffix[domain], domain_redirects, site)
-
-                        for (site2, domain_redirects2) in sw_site_domain_redirects:
-                            overlap = set(domain_redirects).intersection(domain_redirects2)
-                            if len(overlap) > 0:
-                                print("overlap", overlap)
-                                exit(0)
-                        
-
-        else:
-            print("too many suffixes usb domain", domain, usb_domains_suffix[domain])
-    exit(0)
-
-    handled = file_interactor.load_object_exists("handled") if file_interactor.load_object_exists("handled") else []
-    redirects = file_interactor.load_object_exists("redirects") if file_interactor.load_object_exists("redirects") else set()
-    base_redirect_tuples = file_interactor.load_object_exists("base_redirect_tuples") if file_interactor.load_object_exists("base_redirect_tuples") else set()
-    handled_redirect_mapping = file_interactor.load_object_exists("handled_redirect_mapping") if file_interactor.load_object_exists("handled_redirect_mapping") else {}
-
-    if not os.path.exists(os.getcwd() + "/1mredirects.txt"):
-        f = open(os.getcwd() + "/1mredirects.txt", "w")
-        f.close()
-    else:
-        if len(handled) != 0 or len(redirects) == 0 or len(handled_redirect_mapping) == 0 or len(base_redirect_tuples) == 0:
-            handled = []
-            redirects = set()
-            base_redirect_tuples = set()
-            handled_redirect_mapping = {}
-            c = 0
-            content = open(os.getcwd() + "/1mredirects.txt", "r").read()
-            # with open(os.getcwd() + "/1mredirects.txt", "r") as f:
-            length = len(content.split("\n"))
-            for l in content.split("\n"):
-                if not l:
-                    continue
-                # print(c / length, end="\r")
-                c += 1
-                l = l.strip()
-                base_url = l.split(";")[0].strip("/")
-                redirectstring = l.split(";")[1].strip("[]'").strip('"').replace("'", "")
-
-                for redirect in redirectstring.split(","):
-                    redirect = redirect.strip("/")
-                    if redirect != base_url:
-                        redirects.add(redirect)
-                        if (base_url, redirect) not in base_redirect_tuples:
-                            base_redirect_tuples.add((base_url, redirect))
-                        if base_url in handled_redirect_mapping:
-                            if redirect not in handled_redirect_mapping[base_url]:
-                                handled_redirect_mapping[base_url].append(redirect)
-                        else:
-                            handled_redirect_mapping[base_url] = [redirect]
-                if redirectstring:
-                    handled.append(base_url)
-
-            file_interactor.save_object(handled, "handled")
-            file_interactor.save_object(redirects, "redirects")
-            file_interactor.save_object(handled_redirect_mapping, "handled_redirect_mapping")
-            file_interactor.save_object(base_redirect_tuples, "base_redirect_tuples")
-
-    unknown_urls = [('punktmedyczny24', 'pl'), ('2bahiskenti', 'com'), ('almoman', 'co'), ('abesu', 'org'), ('paydaychurch', 'com'), ('dcmais', 'com.br'), ('dorbluess', 'best'), ('ixir', 'gen.tr'), ('lyublyukino', 'online'), ('24journal', 'ru'), ('123moviesme', 'info'), ('readyrewards', 'online'), ('unioni', 'se'), ('rudenude', 'com'), ('baybahis', 'com'), ('thedailygifts', 'club'), ('teliumnetwork', 'se'), ('darrellwaltripbuickgmc', 'com'), ('popimusic', 'ir'), ('activateoffers', 'com'), ('vip168sa', 'co'), ('join77bet', 'com'), ('drinksdirect', 'com'), ('holyheadhotspur', 'co.uk'), ('snaptube', 'dev'), ('mejortorrento', 'com'), ('bee', 'pl'), ('clebervieiranews', 'com.br'), ('eye', 'security'), ('gojom', 'pe'), ('apihf', 'com'), ('hycm', 'eu'), ('revolutionwatch', 'com'), ('hopetomorrows', 'online'), ('rpdrlatino', 'com'), ('socialminer', 'com'), ('kino-history', 'ru'), ('thesuppliercentral', 'com'), ('animefever', 'tv'), ('whirlpoolgroup', 'ru'), ('showbox', 'cam'), ('www', 'trondheim.no'), ('radio3da', 'com'), ('bulbheadinternational', 'com'), ('storyteller', 'travel'), ('meulink', 'social'), ('tnt-o', 'ru'), ('mssg', 'guru'), ('grata', 'com'), ('autokiniton', 'com'), ('meltygroup', 'com'), ('185.224.83.128', ''), ('garr', 'tv'), ('gridleycountryford', 'com'), ('anastonishing', 'online'), ('mailclick', 'biz'), ('sangamsweets', 'in'), ('subtorrents', 'ch'), ('advertoriale', 'com.ro'), ('weplananalytics', 'com'), ('lafinestralectora', 'cat'), ('dizimex', 'info'), ('berangkasilmu', 'com'), ('napapijri', 'nl'), ('dailyfilm', 'ir'), ('clearclouddns', 'com'), ('jeu-a-telecharger', 'fr'), ('theparadise', 'ng'), ('probiv', 'one'), ('freeplay777', 'com'), ('fastlylabs', 'com'), ('octafx', 'pro'), ('ket-noi', 'com'), ('planeta', 'pl'), ('onemarketer', 'cl'), ('topmoviez1', 'xyz'), ('camxpress', 'com'), ('149.3.170.35', ''), ('volleyballworld', 'com'), ('moods', 'no'), ('basslinepromotions', 'com'), ('vocal', 'chat'), ('keychevroletbuickgmcofnewport', 'com'), ('hookupshub', 'com'), ('escapeprogram', 'ru'), ('perfectxml', 'com'), ('desitvshow', 'su'), ('roman', 'co.uk'), ('lalajo21', 'com'), ('bluelogic', 'ai'), ('jeepofcolumbus', 'com'), ('mysatrapstage', 'com'), ('158.69.0.158', ''), ('pelisflix', 'li'), ('vmlyrcommerce', 'com'), ('herewebook', 'dk'), ('sarkarijobs', 'ind.in'), ('curio', 'nl'), ('9ensonbahis', 'com'), ('theninhotline', 'com'), ('kbisupdate', 'com'), ('34.101.125.59', ''), ('odellprinting', 'com'), ('bagallery', 'com'), ('hubwiser', 'fr'), ('trials', 'report'), ('brokenbad', 'biz'), ('newconverter', 'online'), ('octafxmy', 'net'), ('oprahdaily', 'com'), ('kto', 'bet'), ('lp-express', 'fr'), ('buckleaders', 'com'), ('mythiccraft', 'io'), ('gala-mart', 'by'), ('999club', 'com'), ('trippleforward', 'bar'), ('calmbyfire', 'com'), ('51.222.25.37', ''), ('angi', 'com'), ('alienhub', 'com'), ('thoroldtoday', 'ca'), ('jouganime', 'site'), ('tinytap', 'com'), ('faire', 'gouv.fr'), ('vepaar', 'com'), ('pclicious', 'net'), ('vavadahc7', 'com'), ('l-o-a-d-i-n-g', 'com'), ('connectif', 'ai'), ('4gsm', 'com'), ('films1080', 'club'), ('zaimmagaz', 'ru'), ('cc', 'chat'), ('poo', 'com'), ('superhydra', 'xyz'), ('cimalek', 'net'), ('princessmovies', 'io'), ('zbokepxyz', 'org'), ('stopthestealmovement', 'com'), ('tudoparanegocios', 'com'), ('planet-liebe', 'com'), ('freedsound', 'xyz'), ('realplaza', 'com'), ('teleprompter-online', 'com'), ('shortwaittimes', 'online'), ('158.69.0.212', ''), ('luhta', 'com'), ('erozers', 'com'), ('hattanmedia', 'com'), ('alenavisage', 'ru'), ('shortstorymarketing', 'com'), ('luckywinnerislucky', 'com'), ('coca-cola', 'com.br'), ('nalogiros', 'ru'), ('brooktaverner', 'org'), ('privadovpn', 'com'), ('conteshop', 'com'), ('fanverse', 'org'), ('toparticlesfree', 'xyz'), ('northbay', 'ca'), ('atg', 'co.uk'), ('bphgbi', 'org'), ('imgoingcalendar', 'com'), ('russian-porno', 'vip'), ('cyberstrategie', 'org'), ('ritter-sport', 'com'), ('assistdigital', 'it'), ('price9dollar', 'ga'), ('tuvturkistasyonlari', 'com'), ('autoparkcdjr', 'com'), ('allbanglanewspaper', 'co'), ('giamduonghuyet', 'online'), ('movieminions', 'org'), ('astromix', 'net'), ('youproxy', 'xyz'), ('yjc', 'news'), ('wegoreizen', 'nl'), ('quepasamedia', 'com'), ('edtechimpact', 'com'), ('portpos', 'com'), ('clustaar', 'io'), ('51.79.157.150', ''), ('dealblitz', 'com'), ('videoproxy', 'icu'), ('rocketprooriginate', 'com'), ('pelisestreno', 'com'), ('automatapi', 'xyz'), ('167.114.3.50', ''), ('unblocksource', 'org'), ('techno-rad', 'com'), ('leaps', 'org'), ('ne03', 'biz'), ('pwacademy', 'nl'), ('azantime', 'app'), ('npc', 'ba'), ('razvratnoe', 'su'), ('pieper', 'de'), ('sibinfotech', 'com'), ('mywardboard', 'online'), ('tncid', 'app'), ('vivian', 'com'), ('80s80s', 'de'), ('hdserial', 'live'), ('binomo-webtrade', 'com'), ('50five', 'com'), ('v-sys', 'org'), ('japanesemailorderbride', 'net'), ('rayljj012', 'com'), ('viennapass', 'de'), ('closer2event', 'com'), ('manabitimes', 'jp'), ('getmemex', 'com'), ('curriqunet', 'com'), ('baudasdicas', 'com.br'), ('iberojet', 'com'), ('pravnapomoc', 'app'), ('bookkeep', 'com'), ('bismarcktuerme', 'net'), ('musicirani', 'us'), ('anwap', 'pub'), ('lidya', 'info'), ('4filmyzilla', 'nl'), ('rmcmv', 'pw'), ('9filmyzilla', 'site'), ('51.79.239.232', ''), ('inscreen', 'tv'), ('epoch', 'org.il'), ('iitahfiz', 'edu.my'), ('cancoesdemedicina', 'online'), ('luzk', 'ru'), ('schneemannfoundation', 'org'), ('healivemall', 'com'), ('rooter', 'gg'), ('mrgreat', 'org'), ('reactivemarkets', 'com'), ('cinefilmeshd1', 'com'), ('4movierulz', 'art'), ('sgh', 'plus'), ('158.69.0.201', ''), ('adobedownloadrussia', 'com'), ('dynamiteit', 'nz'), ('printreach', 'com'), ('khafan', 'today'), ('bestlatinabrides', 'net'), ('miamasvin', 'net'), ('triniti', 'ai'), ('theloyaltyco', 'app'), ('coronafilmes', 'com'), ('animeyt', 'es'), ('morgenwirdes', 'de'), ('ztracks', 'icu'), ('pornozo', 'net'), ('gornergrat', 'ch')]
-
-    c = 0
-    pwa_sw_sites_overlap = file_interactor.load_object_exists("pwa_sw_sites_overlap") or set()
-    pwa_sw_sites_non_overlap = file_interactor.load_object_exists("pwa_sw_sites_non_overlap") or set()
-    # pwa_sw_sites_overlap = set()
-    # pwa_sw_sites_non_overlap = set()
-    temp = set()
-    if pwa_sw_sites_overlap:
-        check = "http://www"
-        for ((base, redirect), (pwa_base, pwa_redirect)) in pwa_sw_sites_overlap:
-            if base != check and redirect != check and pwa_base != check and pwa_redirect != check:
-                temp.add(((base, redirect), (pwa_base, pwa_redirect)))
-    print("len( temp", list(temp)[:50], len(temp))
-    # length = len(base_redirect_tuples)
-    # part = 0
-    # for (base, redirect) in base_redirect_tuples:
-    #     print(part / length, end="\r")
-    #     part += 1
-    #     for (pwa_base, pwa_redirect) in pwa_base_redirect_tuples:
-    #         # if ((base, redirect), (pwa_base, pwa_redirect)) not in pwa_sw_sites_overlap:
-    #         #     pwa_sw_sites_non_overlap.add(((base, redirect), (pwa_base, pwa_redirect)))
-    #         #     continue
-    #         # else:
-    #         #     continue
-    #         if redirect and pwa_redirect:
-    #             if redirect in pwa_redirect or redirect in pwa_base or pwa_redirect in redirect or pwa_redirect in base:
-    #                 c += 1
-    #                 pwa_sw_sites_overlap.add(((base, redirect), (pwa_base, pwa_redirect)))
-    #                 break
-    # for item in list(pwa_sw_sites_overlap)[:100]:
-    #     print(item)
-    print("base tuples overlap", c, len(pwa_sw_sites_overlap), len(pwa_sw_sites_non_overlap), len(base_redirect_tuples), len(pwa_base_redirect_tuples))
-    # file_interactor.save_object(pwa_sw_sites_overlap, "pwa_sw_sites_overlap")
-    # file_interactor.save_object(pwa_sw_sites_non_overlap, "pwa_sw_sites_non_overlap")
-    exit(0)
-    unknown_urls_merged = set([domain + "." + suffix for (domain, suffix) in unknown_urls])
-    print("unknown urls merged", len(unknown_urls_merged))
-    set_unknown_urls = set(unknown_urls_merged)
-    unknown_urls_found = file_interactor.load_object_exists("unknown_urls_found")
-    # unknown_urls_found = None
-    if not unknown_urls_found:
-        unknown_urls_found = []
-        for unknown_url in unknown_urls_merged:
-            found = False
-            for base_url in handled_redirect_mapping:
-                if found:
-                    break
-                for redirect in handled_redirect_mapping[base_url]:
-                    if unknown_url in redirect:
-                        print("unknown url present", unknown_url, base_url)
-                        unknown_urls_found.append((base_url, unknown_url))
+            for score_file in os.listdir(score_folder):
+                if site in score_file and os.stat(os.path.join(score_folder, score_file)).st_size > 0:
+                    if audit_file_check_func(os.path.join(score_folder, score_file)):
                         found = True
                         break
-                if not found:
-                    for (_, redirects) in pwa_redirects:
-                        for redirect in redirects:
-                            if unknown_url in redirect:
-                                print("unknown url present", unknown_url, base_url)
-                                unknown_urls_found.append((base_url, unknown_url))
-                                found = True
-                                break
-        file_interactor.save_object(unknown_urls_found, "unknown_urls_found")
 
-    unknown_urls_merged.difference_update(set([unknown_url for (_, unknown_url) in unknown_urls_found]))
-    unknown_urls_not_found = set(unknown_urls_merged)
+        if not found:
+            if not site.startswith("www."):
+                site = "www." + site
+            print("no processing", audit_func, site, audit_args)
+            if not audit_func(site, *audit_args[1:]):
+                if site.startswith("www."):
+                    site = site[4:]
+                    # audit_args['site'] = site
+                    # (*audit_args)[0] = site
+                    audit_func(site, *audit_args[1:])
+                else:
+                    site = "www." + site
+                    # (*audit_args)[0] = site
+                    # audit_args['site'] = site
+                    audit_func(site, *audit_args[1:])
 
-    length = len(base_redirect_tuples)
-    missing_manifests = file_interactor.load_object_exists("missing_manifests")
-    if not missing_manifests:
-        missing_manifests = []
-        for subfolder, _, files in os.walk(os.getcwd() + "/SWs/last_sws_desktop_manifests/"):
+    def get_missing_ylt(self, site, ylt_sites, scores_folders):
+        self.get_missing_audit(site, ylt_sites, scores_folders, self.run_ylt, self.check_ylt_score_file, site, scores_folders)
+
+    def get_missing_lighthouse(self, site, lighthouse_sites, scores_folders):
+        self.get_missing_audit(site, lighthouse_sites, scores_folders, self.run_lighthouse, self.check_lighthouse_score_file, site, scores_folders)
+
+    def remove_and_compress_json(self, folder, ext=".gz"):
+        for f in os.listdir(folder):
+            if not os.path.join(folder, f).endswith(ext):
+                if os.stat(os.path.join(folder, f)).st_size > 0:
+                    self.data_aggregator.compress_json_file(os.path.join(folder, f))
+                else:
+                    os.remove(os.path.join(folder, f))
+
+    def get_indexes_amount(self):
+        sw_dirs = os.listdir(self.sw_base_folder)
+        index_sites = self.file_interactor.load_object_exists("index_sites") or set()
+        manifest_sites = self.file_interactor.load_object_exists("manifest_sites") or set()
+        print("Getting index and manifest amounts")
+
+        for site in sw_dirs:
+            if site in manifest_sites and site not in index_sites:
+                index_sites.add(site)
+                manifest_sites.add(site)
+                continue
+            if site in index_sites or site in manifest_sites:
+                continue
+            files = [f for f in os.listdir(os.path.join(self.sw_base_folder, site)) if os.path.isfile(os.path.join(self.sw_base_folder, site, f))]
+            if "index.html" in files:
+                index_sites.add(site)
+                index_content = open(os.path.join(self.sw_base_folder, site, "index.html"), "r").read()
+                if len(self.get_manifest_link_html(index_content, content=True)):
+                    if "manifest.json" in files:
+                        manifest_sites.add(site)
+                    else:
+                        self.print_red(site, "has no manifest")
+            self.file_interactor.save_object(index_sites, "index_sites")
+            self.file_interactor.save_object(manifest_sites, "manifest_sites")
+
+        return len(index_sites), len(manifest_sites)
+
+    def get_missing_indexes(self):
+        sw_dirs = os.listdir(self.sw_base_folder)
+        for site in sw_dirs:
+            print("Scraping missing indexes progress:", sw_dirs.index(site) / len(sw_dirs), end="\r")
+            files = [f for f in os.listdir(os.path.join(self.sw_base_folder, site)) if os.path.isfile(os.path.join(self.sw_base_folder, site, f))]
+            if "beautified.js" in files:
+                if "index.html" not in files or ("index.html" in files and os.stat(os.path.join(self.sw_base_folder, site, "index.html")).st_size == 0):
+                    index_content = self.url_interactor.get_content_url("https://" + site)
+                    if index_content:
+                        if not os.path.exists(os.path.join(self.sw_base_folder, site, "index.html")):
+                            with open(os.path.join(self.sw_base_folder, site, "index.html"), "w") as f:
+                                f.write(index_content)
+
+    def get_missing_manifests(self, sw_base_folder):
+        valid_linked_sw_paths = self.file_interactor.load_object_exists("valid_linked_sw_paths") or {}
+        manifest_failed_scraping, manifest_succeeded_scraping = set(), set()
+        for site in os.listdir(sw_base_folder):
+            if site in valid_linked_sw_paths:
+                    continue
+            files = [f for f in os.listdir(os.path.join(sw_base_folder, site)) if os.path.isfile(os.path.join(sw_base_folder, site, f))]
+            sw_folder = os.path.join(sw_base_folder, site)
+            if "beautified.js" in files and "index.html" in files and os.stat(os.path.join(sw_folder, "index.html")).st_size > 0:
+                if os.path.exists(os.path.join(sw_folder, "index.html")) and os.stat(os.path.join(sw_folder, "index.html")).st_size > 0:
+                    index_content = open(os.path.join(sw_folder, "index.html"), "r").read()
+                else:
+                    index_content = self.url_interactor.get_content_url("https://" + site)
+
+                if index_content:
+                    if not os.path.exists(os.path.join(sw_folder, "index.html")):
+                        with open(os.path.join(sw_folder, "index.html"), "w") as f:
+                            f.write(index_content)
+                    manifest_urls = self.get_manifest_link_html(index_content, content=True)
+                    if len(manifest_urls):
+                        valid_linked_sw_paths[site] = os.path.join(sw_folder, "beautified.js")
+                        if not "manifest.json" in files:
+                            for url in manifest_urls:
+                                if "http" not in url:
+                                    while url.startswith(".") or url.startswith("/"):
+                                        url = url[1:]
+                                    if site not in url:
+                                        url = "https://" + site + "/" + url
+                                    else:
+                                        url = "https://" + url
+                                if validators.url(url):
+                                    succeed = self.scrape_manifest(url, site)
+                                    if not succeed:
+                                        self.print_red("not succeeded", url)
+                                        manifest_failed_scraping.add(site)
+                                    else:
+                                        self.print_green("succeeded", site, url)
+                                        manifest_succeeded_scraping.add(site)
+                                        if site in manifest_failed_scraping:
+                                            manifest_failed_scraping.remove(site)
+                                else:
+                                    self.print_red("no potential", sw_folder,  url)
+                        if "manifest.json" in files:
+                            manifest_succeeded_scraping.add(site)
+                            if site in manifest_failed_scraping:
+                                manifest_failed_scraping.remove(site)
+                else:
+                    print(site, "no index content")
+
+            self.file_interactor.save_object(manifest_succeeded_scraping, "manifest_succeeded_scraping")
+            self.file_interactor.save_object(manifest_failed_scraping, "manifest_failed_scraping")
+
+        self.file_interactor.save_object(valid_linked_sw_paths, "valid_linked_sw_paths")
+
+    def set_valid_linked_sw_paths(self, sw_base_folder):
+        valid_linked_sw_paths = {}
+        length = len(os.listdir(sw_base_folder))
+        count = 0
+        for sw_folder in os.listdir(sw_base_folder):
+            print(count / length, end="\r")
+            count += 1
+            site = sw_folder
+            if site.startswith("www."):
+                site = site[4:]
+            sw_folder = os.path.join(sw_base_folder, sw_folder)
+            if os.path.exists(os.path.join(sw_folder, "beautified.js")):
+                if os.path.exists(os.path.join(sw_folder, "index.html")):
+                    if os.path.exists(os.path.join(sw_folder, "manifest.json")) and os.stat(os.path.join(sw_folder, "manifest.json")).st_size > 0:
+                        index_content = open(os.path.join(sw_folder, "index.html")).read()
+                        manifest_urls = self.get_manifest_link_html(index_content, content=True)
+                        if len(manifest_urls):
+                            valid_linked_sw_paths[site] = os.path.join(sw_folder, "beautified.js")
+        self.file_interactor.save_object(valid_linked_sw_paths, "valid_linked_sw_paths")
+        return valid_linked_sw_paths
+
+    def get_features_manifest_csvs(self, features_csv_file, manifest_csv_file, final_sw_paths):
+        manifest_keys = ["background_color", "categories", "description", "dir", "display", "iarc_rating_id", "icons", "lang", "name", "orientation", "prefer_related_applications", "protocol_handlers", "related_applications", "scope", "screenshots", "short_name", "shortcuts", "start_url", "theme_color"]
+
+        handle = open(features_csv_file, "w")
+        handle.close()
+
+        handle = open(manifest_csv_file, "w")
+        handle.close()
+        # features_temp, feature_same_count, feature_diff_count, diff_features = {}, 0, 0, []
+
+        failed_features, failed_manifest = set(), set()
+        # print("getting features and manifest csv", len(final_sw_paths))
+        for sw in final_sw_paths:
+            feature_path = os.path.join(final_sw_paths[sw].split("beautified.js")[0], "features.json")
+            try:
+                feature_data = self.data_aggregator.get_features_manifest_json_from_file(feature_path, return_json=False)
+                with open(features_csv_file, "a+") as f:
+                    if os.stat(features_csv_file).st_size == 0:
+                        first_line = "website"
+                        for item in feature_data:
+                            first_line += f";{item[0]}"
+                        f.write(first_line + "\n")
+                    website_line = sw
+                    for item in feature_data:
+                        website_line += f";{item[1]}"
+                    f.write(website_line + "\n")
+            except Exception as e:
+                failed_features.add(sw)
+
+            manifest_path = os.path.join(final_sw_paths[sw].split("beautified.js")[0], "manifest.json")
+            try:
+                manifest_data = self.data_aggregator.get_features_manifest_json_from_file(manifest_path, return_json=True)
+                with open(manifest_csv_file, "a+") as f:
+                    if os.stat(manifest_csv_file).st_size == 0:
+                        first_line = "website"
+                        f.write("website" + ";" + ";".join(manifest_keys) + "\n")
+
+                    website_line = '"' + sw + '"'
+                    for key in manifest_keys:
+                        if key in manifest_data:
+                            website_line += ';"' + str(1) + '"'
+                        else:
+                            website_line += ';"' + str(0) + '"'
+                    if website_line == "":
+                        print(manifest_path, "empty line")
+                        exit(0)
+                    f.write(website_line + "\n")
+            except Exception as e:
+                failed_manifest.add(sw)
+
+    def get_single_domains(self, domain_suffix_mapping):
+        res = {}
+        top_1m_domain_mapping = self.file_interactor.load_object_exists("top1m_sites_domain_mapping")
+        for dom in domain_suffix_mapping:
+            if type(domain_suffix_mapping[dom]) == type(""):
+                res[dom] = domain_suffix_mapping[dom]
+                continue
+            if len(domain_suffix_mapping[dom]) > 1:
+                if dom in top_1m_domain_mapping:
+                    for suffix in top_1m_domain_mapping[dom]:
+                        if suffix in domain_suffix_mapping[dom]:
+                            res[dom] = suffix
+                            break
+                else:
+                    res[dom] = list(domain_suffix_mapping[dom])[0]
+            else:
+                if len(domain_suffix_mapping[dom]) == 1:
+                    res[dom] = list(domain_suffix_mapping[dom])[0]
+                else:
+                    res[dom] = ''
+        return res
+
+    def remove_js_comments(self, string):
+        pattern = r"(\".*?\"|\'.*?\')|(/\*.*?\*/|//[^\r\n]*$)"
+        # first group captures quoted strings (double or single)
+        # second group captures comments (//single-line or /* multi-line */)
+        regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
+        def _replacer(match):
+            # if the 2nd group (capturing comments) is not None,
+            # it means we have captured a non-quoted (real) comment string.
+            if match.group(2) is not None:
+                return "" # so we will return empty to remove the comment
+            else: # otherwise, we will return the 1st group
+                return match.group(1) # captured quoted-string
+        return regex.sub(_replacer, string)
+
+    def scrape_manifest(self, url, sw_folder):
+        if not os.path.exists(sw_folder):
+            return False
+        content = self.url_interactor.get_content_url(url)
+        if content:
+            try:
+                json.loads(content)
+            except Exception as e:
+                print("loading json failed", url)
+                try:
+                    content = content.encode().decode("utf-8-sig")
+                    json.loads(content)
+                except Exception as e2:
+                    print(e2)
+                    return False
+            with open(os.path.join(sw_folder, "manifest.json"), "w") as f:
+                f.write(content)
+            return True     
+        return False
+
+    def get_all_imports_importsfolder(self, imported_scripts_folder, url_local_file_linker):
+        new_found_urls = set()
+        failed_urls = self.file_interactor.load_object_exists("failed_urls_extra_imports") or set()
+        imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker") or {}
+        files = [os.path.join(imported_scripts_folder, f) for f in os.listdir(imported_scripts_folder) if os.path.isfile(os.path.join(imported_scripts_folder, f))]
+        new_import_paths, _ = self.filter_sw_importscripts(files)
+        folder_size = sum(os.path.getsize(os.path.join(imported_scripts_folder,f)) for f in os.listdir(imported_scripts_folder) if os.path.isfile(os.path.join(imported_scripts_folder, f)))
+    
+        for path in new_import_paths:
+            for url in new_import_paths[path]:
+                replaced_url = self.url_interactor.replace_url(url)
+                new_file_path = os.path.join(imported_scripts_folder, replaced_url)[:255]
+                if url in url_local_file_linker:
+                    if path in imported_scripts_linker:
+                        imported_scripts_linker[path].add(url_local_file_linker[url])
+                    else:
+                        imported_scripts_linker[path] = set([url_local_file_linker[url]])
+                elif os.path.exists(new_file_path):
+                    url_local_file_linker[url] = new_file_path
+                    if path in imported_scripts_linker:
+                        imported_scripts_linker[path].add(url_local_file_linker[url])
+                    else:
+                        imported_scripts_linker[path] = set([url_local_file_linker[url]])
+                elif url not in new_found_urls and not os.path.exists(new_file_path):
+                    new_found_urls.add((path, url))
+
+        for (path, url) in new_found_urls:
+            content = self.url_interactor.get_content_url(url)
+            if content:
+                content = jsbeautifier.beautify(content)
+                if content.strip().startswith("<"):
+                    continue
+
+                for local_url in url_local_file_linker:
+                    if content == open(url_local_file_linker[local_url]).read():
+                        url_local_file_linker[url] = url_local_file_linker[local_url]
+                        if path in imported_scripts_linker:
+                            imported_scripts_linker[path].add(url_local_file_linker[local_url])
+                        else:
+                            imported_scripts_linker[path] = set([url_local_file_linker[local_url]])
+                        break
+
+                if url not in url_local_file_linker:
+                    replaced_url = self.url_interactor.replace_url(url)
+                    new_file_path = os.path.join(imported_scripts_folder, replaced_url)[:255]
+                    with open(new_file_path, "w") as f:
+                        f.write(content)
+                    url_local_file_linker[url] = new_file_path
+                    if path in imported_scripts_linker:
+                        imported_scripts_linker[path].add(url_local_file_linker[url])
+                    else:
+                        imported_scripts_linker[path] = set([url_local_file_linker[url]])
+            else:
+                failed_urls.add(url)
+
+        self.file_interactor.save_object(failed_urls, "failed_urls_extra_imports")
+        self.file_interactor.save_object(imported_scripts_linker, "imported_scripts_linker")
+        new_folder_size = sum(os.path.getsize(os.path.join(imported_scripts_folder, f)) for f in os.listdir(imported_scripts_folder) if os.path.isfile(os.path.join(imported_scripts_folder, f)))
+
+        if folder_size < new_folder_size:
+            url_local_file_linker = self.get_all_imports_importsfolder(imported_scripts_folder, url_local_file_linker)
+
+        return url_local_file_linker
+
+    def get_importscripts_sources(self, path):
+        content = self.remove_js_comments(open(path, "r").read())
+        try:
+            import_urls = self.strip_function_arguments_from_content(content, "(", ")", "importscripts")
+        except Exception as e:
+            print("error stripping importscripts", e)
+            print(content)
+            exit(1)
+        # print("import urls", import_urls)
+
+        return import_urls
+    
+    def filter_sw_importscripts(self, paths_set):
+        sw_paths_urls, sw_paths_no_urls = {}, set()
+        for path in paths_set:
+            importscript_strings_present = self.get_importscripts_sources(path)
+            for importscript_string in importscript_strings_present:
+                url = importscript_string
+                if "http" in path and "http" not in url:
+                    while url.startswith(".") or url.startswith("/"):
+                        url = url[1:]
+                    url = "http" + self.url_interactor.inverse_replace_url(path.split("http")[-1]) + "/" + url
+                elif "https://" not in url:
+                    if url.startswith("."):
+                        url = url[1:]
+                    if url.startswith("/"):
+                        url = url[1:]
+                    try:
+                        url = "https://" + path.split(self.sw_base_folder)[1].split("/")[0] + "/" + url
+                    except:
+                        continue
+
+                if validators.url(url):
+                    if path in sw_paths_urls:
+                        sw_paths_urls[path].add(url)
+                    else:
+                        sw_paths_urls[path] = set([url])
+
+            if path not in sw_paths_urls:
+                sw_paths_no_urls.add(path)
+        return sw_paths_urls, sw_paths_no_urls
+    
+    def sw_scrape_importscripts(self, sw_paths_urls):
+        imported_scripts_folder = os.getcwd() + "/SWs/imported_scripts/"
+        url_local_file_linker = self.file_interactor.load_object_exists("url_local_file_linker") or {}
+        failed_urls = self.file_interactor.load_object_exists("failed_urls") or {}
+        for sw_path in sw_paths_urls:
+            if sw_path in sw_paths_urls:
+                for url in sw_paths_urls[sw_path]:
+                    if "," in url:
+                        print("comma url", sw_path, url)
+                        exit(0)
+                    elif "\\" in url:
+                        print("backslash in url", sw_path, url)
+                        exit(0)                    
+                    failed_url_found = False
+                    for other_sw_path in failed_urls:
+                        if url in failed_urls[other_sw_path]:
+                            failed_url_found = True
+                    if failed_url_found or url in url_local_file_linker:
+                        continue
+
+                    files = [os.path.join(imported_scripts_folder, f) for f in os.listdir(imported_scripts_folder) if os.path.isfile(os.path.join(imported_scripts_folder, f))]
+                    replaced_url = self.url_interactor.replace_url(url)
+                    new_file_path = os.path.join(imported_scripts_folder, replaced_url)[:255]
+                    if new_file_path in files:
+                        url_local_file_linker[url] = new_file_path
+                    else:
+                        local_content_found = False
+                        content = self.url_interactor.get_content_url(url)
+                        if content != None:
+                            try:
+                                content = jsbeautifier.beautify(content).strip()
+                            except:
+                                if sw_path in failed_urls:
+                                    failed_urls[sw_path].add(url)
+                                else:
+                                    failed_urls[sw_path] = set([url])
+                                continue
+                            if True in ["!doctype" and "html" in x.lower() for x in content.split("\n")] or content.lower().strip().startswith("<"):
+                                # time.sleep(10)
+                                if sw_path in failed_urls:
+                                    failed_urls[sw_path].add(url)
+                                else:
+                                    failed_urls[sw_path] = set([url])
+                                # exit(0)
+                                continue
+                            # local_content_found = False
+                            for file in files:
+                                if content == open(file, "r").read():
+                                    local_content_found = True
+                                    # if sw_path in url_local_file_linker:
+                                    url_local_file_linker[url] = file
+                                    break
+                            if not local_content_found:
+                                with open(new_file_path, "w") as f:
+                                    f.write(content)
+                        else:
+                            if sw_path in failed_urls:
+                                failed_urls[sw_path].add(url)
+                            else:
+                                failed_urls[sw_path] = set([url])
+                    self.file_interactor.save_object(url_local_file_linker, "url_local_file_linker")
+                    self.file_interactor.save_object(failed_urls, "failed_urls")
+
+        return url_local_file_linker
+
+    def get_sw_results(self, final_sw_paths, sw_paths_urls, sw_results_csv_file):
+        if not os.path.exists(sw_results_csv_file):
+            with open(sw_results_csv_file, "w") as f:
+                f.write("website;SWs count;size;events;loc;ccns\n")
+
+        # sw_paths_urls = file_interactor.load_object_exists("sw_paths_urls")
+        imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker")
+        url_local_file_linker = self.file_interactor.load_object_exists("url_local_file_linker")
+        
+        processed_sws = self.data_aggregator.get_col_csv(sw_results_csv_file, "website", strip_char='"')
+        # self.data_aggregator.filter_csv(sw_results_csv_file, "website")
+        # exit(0)
+
+        for sw_domain_suffix in final_sw_paths:
+            if sw_domain_suffix in processed_sws:
+                continue
+            sw = final_sw_paths[sw_domain_suffix]
+            paths = set([sw])
+            if sw in sw_paths_urls:
+                urls = sw_paths_urls[sw]
+                for url in urls:
+                    if url in url_local_file_linker:
+                        paths.add(url_local_file_linker[url])
+                    if url in url_local_file_linker and url_local_file_linker[url] in imported_scripts_linker:
+                        for import_path in imported_scripts_linker[url_local_file_linker[url]]:
+                            paths.add(import_path)
+            website, SW_count, size, events, loc, ccns = self.get_sw_metrics(paths, self.sw_base_folder, sw)
+            self.file_interactor.append_line(sw_results_csv_file, f'"{sw_domain_suffix}";"{SW_count}";"{size}";"{events}";"{loc}";"{ccns}"\n')
+
+    def strip_function_arguments_from_content(self, line, start_char, end_char, function_name):
+        return_set = set()
+        line = str(line)
+        line = line.strip().lower()
+
+        start_index = line.find(function_name)
+        if start_index == -1:
+            return return_set
+        start_index += len(function_name)
+        substring_start = line.find(start_char, start_index)
+
+        while True:
+            if substring_start == -1 or len(line) == 0 or start_index == -1:
+                break
+
+            current_index = start_index
+
+            while not line[current_index] == start_char:
+                current_index += 1
+            current_index += 1
+            sources = ""
+
+            stop = False
+            while not line[current_index] == end_char:
+                if current_index == len(line) - 1:
+                    stop = True
+                    break
+                sources += line[current_index]
+                current_index += 1
+            if stop:
+                for source in sources.split(","):
+                    return_set.add(source)
+                return return_set
+
+            for source in sources.split(","):
+                source = source.strip()
+                if source.startswith("'") or source.startswith("`") or source.startswith('"'):
+                    if source.endswith("'") or source.endswith("`") or source.endswith('"'):
+                        source = source.strip("`").strip("'").strip('"')
+                        return_set.add(source)
+                    else:
+                        return_set.add(source)
+                else:
+                    return_set.add(source)
+
+            start_index = line.find(function_name, current_index)                
+
+        return return_set
+
+    def get_all_js(self, file_paths):
+        all_js = ""
+        for path in file_paths:
+            if os.path.exists(path):
+                all_js += open(path, "r").read() + "\n"
+        return jsbeautifier.beautify(all_js).strip()
+
+    def check_manifest_homescreen(self, sw_source_folder):
+        try:
+            manifest_data = self.data_aggregator.get_features_manifest_json_from_file(os.path.join(sw_source_folder, "manifest.json"), return_json=True)
+        except:
+            return False
+        if "name" in manifest_data and manifest_data["name"]:
+            if "icons" in manifest_data and manifest_data["icons"]:
+                for icon in manifest_data["icons"]:
+                    if "src" in icon and "sizes" in icon and "type" in icon:
+                        return True
+        return False
+
+    def extract_sw_features_wrapper(self, sw_paths_urls, url_local_file_linker, final_sw_paths):
+        imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker")
+        for sw_domain_suffix in final_sw_paths:
+            sw = final_sw_paths[sw_domain_suffix]
+            paths = set([sw])
+            if sw in sw_paths_urls:
+                urls = sw_paths_urls[sw]
+                for url in urls:
+                    if url in url_local_file_linker:
+                        paths.add(url_local_file_linker[url])
+                    if url in url_local_file_linker and url_local_file_linker[url] in imported_scripts_linker:
+                        for import_path in imported_scripts_linker[url_local_file_linker[url]]:
+                            paths.add(import_path)
+            features = self.get_sw_features_from_js(os.path.join("/".join(sw.split("/")[:-1])), paths)
+            if features:
+                with open(os.path.join("/".join(sw.split("/")[:-1]), "features.json"), "w") as f:
+                    json.dump(features, f)
+
+    def get_sw_features_from_js(self, sw_source_folder, file_paths):
+        all_js = ""
+        for path in file_paths:
+            all_js += open(path, "r").read() + "\n"
+        all_js = self.remove_js_comments(all_js)
+        all_js = all_js.lower()
+
+        # TODO verwijder silent push uit latex en voeg background task en fetch toe. maak hem hetzelfde als deze lijst iig
+        features = {"Offline Capabilities": False, "Push Notifications": False, "Add to Home Screen": False, "Background Sync": False, "Navigation Preload": False,\
+                    "Storage Estimation": False, "Persistent Storage": False, "Web Share": False, "Media Session": False, "Media Capabilities": False,\
+                    "Device Memory": False, "Getting Installed Related Apps": False, "Payment Request": False, "Credential Management": False,\
+                    "Background Tasks": False, "Background Fetch": False}
+        if "open" in all_js:
+            args = self.strip_function_arguments_from_content(all_js, "(", ")", ".open")
+            if len(args) >= 1:
+                features["Offline Capabilities"] = True
+
+        # Also includes "showNotification()"
+        if "notification(" in all_js:
+            features["Push Notifications"] = True        
+        if self.check_manifest_homescreen(sw_source_folder):
+            features["Add to Home Screen"] = True
+        if "syncmanager" in all_js or "sync.register(" in all_js:
+            features["Background Sync"] = True
+        if "navigationpreload" in all_js and ".enable(" in all_js:
+            features["Navigation Preload"] = True
+        if "estimate(" in all_js:
+            features["Storage Estimation"] = True
+        if "persist(" in all_js or "persisted(" in all_js:
+            features["Persistent Storage"] = True
+        if "share(" in all_js or "canshare(" in all_js:
+            features["Web Share"] = True
+        if "mediametadata" in all_js or "mediasession" in all_js:
+            features["Media Session"] = True
+        if "mediacapabilities" in all_js:
+            features["Media Capabilities"] = True
+        if "devicememory" in all_js:
+            features["Device Memory"] = True
+        if "getinstalledrelatedapps" in all_js:
+            features["Getting Installed Related Apps"] = True
+        if "paymentrequest" in all_js or "canmakepayment(" in all_js:
+            features["Payment Request"] = True
+        if "federatedcredential" in all_js or "otpcredential" in all_js or "passwordcredential" in all_js or "publickeycredential" in all_js or "credential.id" in all_js or\
+           "credential.type" in all_js:
+            features["Credential Management"] = True
+        if "requestidlecallback(" in all_js or "cancelidlecallback(" in all_js or "idledeadline" in all_js:
+            features["Background Tasks"] = True
+        if "backgroundfetchmanager" in all_js or "backgroundfetchregistration" in all_js or "backgroundfetchrecord" in all_js or "backgroundfetchevent" in all_js or\
+            "backgroundfetchupdateuievent" in all_js or "backgroundfetch.fetch(" in all_js or "backgroundfetchevent" in all_js or "onbackgroundfetch" in all_js:
+            features["Background Fetch"] = True
+
+        if features["Push Notifications"]:
+            print(features["Push Notifications"], file_paths)
+        return features
+
+    def get_sw_metrics(self, paths, sw_base_folder, sw, subfolder=os.getcwd() + "/SWs/temp/"):
+        if not os.path.exists(subfolder):
+            os.mkdir(subfolder)
+        print("running sw loc for", paths, subfolder)
+        website, SW_count, size, events, loc, ccns = "", 0, 0, [], 0, []
+        website = sw_base_folder.strip("/").split("/")[-1]
+
+        all_js = self.get_all_js(paths)
+        temp_js_path = os.path.join(subfolder, "all_js.js")
+        print("tempjspath", temp_js_path)
+        with open(temp_js_path, "w") as f:
+            f.write(all_js)
+
+        output = subprocess.check_output("cloc --csv " + temp_js_path , shell=True)
+        loc = 0
+        for l in output.decode().split("\n"):
+            comma_splitted = l.lower().split(",")
+            if len(comma_splitted) > 4:
+                if comma_splitted[1] == "javascript":
+                    loc += int(comma_splitted[4])
+
+        try:
+            output = subprocess.check_output("lizard -l js " + temp_js_path, shell=True)
+        except subprocess.CalledProcessError as exc:
+            # self.print_red("output error 1 " + output.decode()[:500])
+
+            output = exc.output
+            self.print_red("output error 2" + output.decode()[:500])
+            # exit(0)
+
+        ccns = []
+        for l in output.decode().split("\n"):
+            if "all_js" in l:
+                if l.split()[1].isdigit():
+                    ccns.append(l.split()[1])
+
+        size = os.stat(temp_js_path).st_size
+        events = self.data_aggregator.get_file_events(all_js)
+
+        output = subprocess.check_output("ls " + "/".join(sw.split("/")[:-1]), shell=True)
+        for l in output.decode().split("\n"):
+            if l and not l.startswith("http") and "beautified" not in l and "requests" not in l and "features.json" not in l and "manifest" not in l and "imported_files" not in l and not "index.html" in l:
+                print("sw file", l)
+                SW_count += 1
+
+        return website, SW_count, size, events, loc, ccns
+
+    def get_manifest_link_html(self, path, content=False):
+        if content:
+            html = path
+        else:
+            try:
+                with open(path, "r", encoding="utf8") as f:
+                    html = f.read()
+            except:
+                with open(path, "r", encoding="utf8", errors="replace") as f:
+                    html = f.read()
+                # print("errored", html)
+                return []
+
+        links = []
+        for link in bs4.BeautifulSoup(html, "html.parser", from_encoding="iso-8859-1").find_all('link', {'rel': "manifest"}):
+            if link.has_attr('href'):
+                links.append(link['href'])
+        return links
+
+    def get_manifests_sites(self, sw_base_folder, present=False):
+        missing = []
+        for subfolder, _, files in os.walk(sw_base_folder):
             manifest_present = False
             for file in files:
-                if "manifest.json" == file:
+                if "manifest.json" in file:
                     if os.stat(os.path.join(subfolder, file)).st_size != 0:
                         manifest_present = True
                         break
-            if not manifest_present:
-                splitted = subfolder.split("/")[-1]
-                missing_manifests.append(splitted)
-        file_interactor.save_object(missing_manifests, "missing_manifests")
-    # unknown_urls_merged.difference_update(set(unknown_urls_missing_manifests))
-    missing_manifests = sw_post_processor.get_manifests_sites(os.getcwd() + "/SWs/last_sws_desktop_manifests/", present=False)
-    
-    print("unknown urls manifest present", len(unknown_urls_merged), "len unknown urls", len(unknown_urls), "missingmanifests", len(missing_manifests), missing_manifests[:100])
-    print("unknown urls not found", len(unknown_urls_not_found), list(unknown_urls_not_found))
-    print("unknown urls found:", len(unknown_urls_found))
+            if present and manifest_present:
+                splitted = subfolder.split("/")
+                missing.append(splitted[-1])
+            elif not present and not manifest_present:
+                splitted = subfolder.split("/")
+                missing.append(splitted[-1])
+        return missing
 
-    redirect_unknown_mapping = file_interactor.load_object_exists("redirect_unknown_mapping") if file_interactor.load_object_exists("redirect_unknown_mapping") else set()
-    # redirect_unknown_mapping = None
-    if not redirect_unknown_mapping:
-        redirect_unknown_mapping = []
-        for domain_suffix in unknown_urls_merged:
-            present = False
-            for mapping in redirect_unknown_mapping:
-                if domain_suffix == mapping[0]:
-                    present = True
-                    break
-            if present:
-                continue
-            if domain_suffix:
-                for (base_url, redirect) in base_redirect_tuples:
-                    # for redirects in handled_redirect_mapping[base_url]:
-                        # for redirect in redirects:
-                    if base_url != redirect:
-                        if domain_suffix in redirect:
-                            # base_redirect_tuples.remove((base_url, redirect))
-                            redirect_unknown_mapping.append((domain_suffix, base_url, redirect))
-                            # print(domain_suffix, "in redirect'", redirect, base_url)
-        print("len redirect unknown mapping", len(redirect_unknown_mapping))
-        
-        file_interactor.save_object(redirect_unknown_mapping, "redirect_unknown_mapping")
-    else:
-        print("redirect unknown mapping", len(redirect_unknown_mapping))
-        for mapping in redirect_unknown_mapping:
-            print(mapping)
-    print("handled len", len(handled), len(set(handled)))
+    def get_lighthouse_scores(self, score_file_path, failed=[]):
+        if os.stat(score_file_path).st_size == 0:
+            print("skippung")
+            return
+        scores = []
+        if score_file_path.endswith("json.gz"):
+            try:
+                with gzip.open(score_file_path, 'rt', encoding='UTF-8') as zipfile:
+                    l = json.load(zipfile)
+                l = ast.literal_eval(l)
+            except:
+                print("decompressing failed", score_file_path)
+                failed.append(score_file_path.split(".json")[0])
+                return failed, scores
+        else:
+            l = json.load(open(score_file_path, "r"))
 
-    all_urls = file_interactor.load_object("all_urls")
-    if not all_urls:
-        with open(os.getcwd() + "/top-1m.csv", "r") as f:
+        for cat in ['performance', 'accessibility', 'seo', 'best-practices']:
+            scores.append(l['categories'][cat]['score'])
+        return failed, scores
+
+    def get_ylt_scores(self, score_file_path, failed=[]):
+        scores = []
+        print(score_file_path)
+        if score_file_path.endswith(".gz"):
+            try:
+                with gzip.open(score_file_path, 'r') as zip_ref:
+                    content = zip_ref.read().decode("utf-8")
+                scoreProfiles = "".join(content.split("scoreProfiles")[1].split(" ")[1:])[:-2]
+                score_dic = ast.literal_eval(scoreProfiles)
+                for complexity in ['domComplexity', 'cssComplexity', 'badJavascript', 'pageWeight', 'requests']:
+                    scores.append(score_dic['generic']['categories'][complexity]['categoryScore'])
+            except Exception as e:
+                failed.append(score_file_path.split(".json")[0])
+                print(str(e)[:1000])
+                exit(0)
+        else:
+            try:
+                if os.stat(score_file_path).st_size / 10 ** 6 > 100:
+                    print("large", score_file_path)
+                    score_json = json.load(open(score_file_path, "r"))
+                    score_json = ast.literal_eval(score_json)
+                    for complexity in ['domComplexity', 'cssComplexity', 'badJavascript', 'pageWeight', 'requests']:
+                        scores.append(score_json[complexity]['categoryScore'])
+                else:
+                    json_string = open(score_file_path, "r").read()
+                    score_json = json.loads(json_string)
+            except Exception as e:
+                import time
+                time.sleep(2)
+                print("json loads failed", score_file_path, str(e)[:2000], "hoi", scores)
+                failed.append(score_file_path.split(".json")[0])
+
+            if not len(scores):
+                print("no score_json", score_file_path, len(score_json))
+                for complexity in ['domComplexity', 'cssComplexity', 'badJavascript', 'pageWeight', 'requests']:
+                    scores.append(score_json['scoreProfiles']['generic']['categories'][complexity]['categoryScore'])
+
+        if len(scores):
+            if None in scores:
+                print("None in ylt scores", score_file_path)
+                exit(0)
+            return failed, scores
+        else:
+            print(score_file_path, "no ylt scores")
+            exit(0)
+
+    def process_lighthouse_scores(self, lighthouse_folder, non_duplicate_sites, output_file, failed=set()):
+        extract = tldextract.TLDExtract()
+        count = 0
+        if not output_file:
+            output_file = os.getcwd() + "/Scores/lighthouse_aggregated.csv"
+
+        if not os.path.exists(output_file):
+            with open(output_file, "w") as f:
+                f.write("website;performance;accessibility;seo;best-practices\n")
+        handled = self.data_aggregator.get_col_csv(output_file, 0)
+        with open(output_file, "r") as f:
             for l in f:
-                # print(len(urls) / 1000000, end="\r")
-                url = "https://" + l.split(",")[1].strip()
-                # if url not in handled:
-                    # urls.append(url)
-                    # if len(urls) > 100000:
-                        # break
-                all_urls.append(url)
-        file_interactor.save_object(all_urls, "all_urls")
+                if not l.startswith("website"):
+                    if "None" in l:
+                        failed.add(l.split(";")[0])
+                        print("None", l, l.split(";")[0])
+        for subdir, _, score_files in os.walk(lighthouse_folder):
+            for score_file in score_files:
+                file_name = score_file.split(".json")[0]
+                if file_name.startswith("www."):
+                    file_name = file_name[4:]
+                site = file_name.split(".json")[0]
+                # failed, scores = self.get_lighthouse_scores(os.path.join(lighthouse_folder, score_file), failed)
+                # if None in scores:
+                #     failed.append(score_file.split(".json")[0])
+                #     print("nones", score_file, scores)
+                #     continue
+                if site in handled or site not in non_duplicate_sites:
+                    continue
+                failed, scores = self.get_lighthouse_scores(os.path.join(lighthouse_folder, score_file), failed)
+                if None in scores:
+                    failed.add(score_file.split(".json")[0])
+                    # print("nones", score_file, scores)
+                    continue
 
-    urls = set(all_urls)
-    urls.difference_update(set(handled))
-    urls = list(urls)
+                if score_file.split(".json")[0] in failed:
+                    failed.remove(score_file.split(".json")[0])
+                with open(output_file, "a+") as f:
+                    f.write(site + ";" + ";".join([str(x) for x in scores]) + "\n")
+                print(count, "lighthouse", score_file, scores)
+                count += 1
+        return failed
 
-    set_all_urls = set(all_urls)
-    all_urls = list(set_all_urls)
-    part_index = 0
-    part_size = 100000
+    def process_yellowlabtools_scores(self, yellowlabtools_folder, non_duplicate_sites, output_file, failed=set([])):        
+        if not output_file:
+            output_file = os.getcwd() + "/Scores/ylt_aggregated.csv"
+        if not os.path.exists(output_file):
+            with open(output_file, "w") as f:
+                f.write("website;domComplexity;cssComplexity;badJavascript;pageWeight;requests\n")
 
-    if redirect_processing:
-        chunksize, length = 1, 0
-        pbar = tqdm.tqdm(total=int(len(pwa_redirects_need_handling) / chunksize), mininterval=1)
-        for i in range(int(len(pwa_redirects_need_handling) / chunksize)):
-            # responses = [session.head(url, timeout=30, headers=header) for url in urls[i * chunksize:i * chunksize + chunksize]]
-            urls_part = pwa_redirects_need_handling[i * chunksize:i * chunksize + chunksize]
-            length += len(pwa_redirects_need_handling)
-            starttime = time.time()
-            loop = asyncio.get_event_loop()
-            url_redirects = loop.run_until_complete(url_wrapper_async(urls_part, output_file=os.getcwd() + "/1mredirects_pwa.txt"))
+        handled = set(self.data_aggregator.get_col_csv(output_file, 0))
+        for subdir, _, score_files in os.walk(yellowlabtools_folder):
+            for score_file in score_files:
+                # if "marieclair"  in score_file:
+                #     continue
+                file_name = score_file.split(".json.gz")[0]
+                if file_name.startswith("www."):
+                    file_name = file_name[4:]
+                site = file_name.split(".json")[0]
+                if site in handled or site not in non_duplicate_sites:
+                    continue
+                print("ylt processing site", site, yellowlabtools_folder, score_file, len(handled))
 
-            for url, redirects in url_redirects:
-                if len(redirects) != 0:
-                    pwa_redirects.append((url, redirects))
-                    remove_line_substring(os.getcwd() + "/1mredirects_pwa.txt", [url, "[]"])
-                    append_line(os.getcwd() + "/1mredirects_pwa.txt", f"{url};{redirects}\n")
-                else:
-                    print("skipping", url)
-            file_interactor.save_object(pwa_redirects, "pwa_redirects")
-            pbar.update(chunksize)
-            continue
+                if os.stat(os.path.join(yellowlabtools_folder, score_file)).st_size == 0:
+                    self.print_red("no size", site, yellowlabtools_folder)
+                    failed.add(site)
+                    continue
+                failed, scores = self.get_ylt_scores(os.path.join(yellowlabtools_folder, score_file), failed)
+                print(len(handled), "ylt",  ";".join([str(x) for x in scores]), score_file)
+                if len(scores):
+                    if site in failed:
+                        failed.remove(site)
 
-        chunksize = 10
-        i = 0
-        length = 0
-        urls_left = len(urls)
-        all_redirects = []
-
-        if len(sys.argv) == 1 or len(sys.argv) == 2 and sys.argv[1] != "hoi":
-            exit(1)
-
-        print("doing", int(100000 / chunksize), "iterations", len(urls), "need handling", len(all_urls) - len(set(handled)))
-        print("urls", urls[:100], len(urls))
-
-        for i in range(int(100000 / chunksize)):
-            # responses = [session.head(url, timeout=30, headers=header) for url in urls[i * chunksize:i * chunksize + chunksize]]
-            urls_part = urls[i * chunksize:i * chunksize + chunksize]
-            length += len(urls)
-            starttime = time.time()
-            loop = asyncio.get_event_loop()
-            url_redirects = loop.run_until_complete(url_wrapper_async(urls_part))
-
-            for url, redirects in url_redirects:
-                if len(redirects) != 0:
-                    remove_line_substring(os.getcwd() + "/1mredirects.txt", [url, "[]"])
-                    append_line(os.getcwd() + "/1mredirects.txt", f"{url};{redirects}\n")
-                else:
-                    print("skipping", url)
-            pbar.update(chunksize)
-            continue  
-
-        # pool = Pool(os.cpu_count())
-        # pool.map_async(url_interactor.check_url_redirects, urls, chunksize=10)
-    
-    rootdirs = [os.getcwd() + "/last_sws_copy/"]
-    invalid_urls_file = os.getcwd() + "/invalid.txt"
-    handled_sites_file = os.getcwd() + "/handled_urls.txt"
-
-    # second_sws_folder = os.getcwd() + "/last_sws_copy/"
-    if not os.path.exists(handled_sites_file):
-        f = open(handled_sites_file, "w")
-        f.close()
-
-    invalid_urls = set(read_line_seperated_file(invalid_urls_file))
-    handled_sites = set(read_line_seperated_file(handled_sites_file))
-    need_handling = []
-    set_sws = file_interactor.load_object("set_sws")
-
-    for website in set_sws:
-        # for website in websites:
-        if website not in handled_sites:
-            need_handling.append(website)
-
-    c = 0
-    with Pool(processes=4) as pool:
-        pool.map(partial(scrape_website_js, rootdirs=rootdirs, invalid_urls=invalid_urls, handled_sites=handled_sites), need_handling)
+                    with open(output_file, "a+") as f:
+                        f.write(site + ";" + ";".join([str(x) for x in scores]) + "\n")
+                    handled.add(site)
+        return failed

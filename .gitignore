@@ -3,7 +3,10 @@ first_sws/
 Scores/
 node_modules/
 wappalyzer/
+/CSVs/*(copy).csv
 
+unzipfail*
+unzipping *
 notes.txt
 commands.txt
 todo.txt

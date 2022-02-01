@@ -61,8 +61,16 @@ function manifestCheck(manifest) {
 async function getFeatureSupport(page) {
     return page.evaluate(() => {
         if (navigator) {
+            console.log("navi all items")
+            for (let i in navigator){
+                console.log("navigator item", i);
+            }
             if (navigator.serviceWorker) {
+                
                 registration = navigator.serviceWorker.getRegistration();
+                if ("deviceMemory" in navigator) {
+                    return navigator.deviceMemory;
+                }
                 return {
                     "Offline capabilities": "caches" in window,
                     "Push notifications": "pushManager" in registration,
@@ -81,6 +89,8 @@ async function getFeatureSupport(page) {
                     "Credential Management": "credentials" in navigator
                 }
             }
+        } else {
+            console.log("no navi")
         }
     })
 }
@@ -146,7 +156,7 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
         await cluster.task(async ({ page, data: url }) => {
             var securityDetails = [];
             var manifestUrl;
-            var header = {"service-worker": "script"};
+            // var header = {"service-worker": "script"};
             // require('https').globalAgent.options.ca = rootCas;
             console.log("processing", url)
             // await page.setRequestInterception(true);
@@ -320,12 +330,8 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
 
         var currentprogress = fs.readFileSync(__dirname + "/cluster_progress.txt").toString();
         var urls = ['1,samsonite.com'];
-        // empty
-        urls = ['salvationarmy.org.hk', 'www.physioinq.com.au', 'www.rolia.net', 'www.roselinlin.com', 'www.algosobre.com.br', 'www.gsmkolik.com', 'www.leomax.ru', 'www.letskinky.com', 'rfindustries.com', 'www.cycleclassifieds.us', 'ukrzoloto.ua', 'www.onebladeshave.com', 'www.jackpotcapital.eu', 'pockee.com', 'www.golbazar.com', 'www.gasiweb.com', 'nzwarriors.com', 'www.flyonit.com',  'www.marktest.com', 'citizensgbr.org', 'zolotoy.ru', 'www.dnaromance.com', 'shytok.net', 'www.carecalendar.org', 'www.bse-sofia.bg', 'www.unra.go.ug', 'www.description-pdf.ru', 'shopp.ir', '2-berega.ru', 'phoneemdad.com', 'pitstopusa.com', 'facturedo.pe', 'www.lamuscle.com', 'sotaychemgio.com', 'ideco-ipo-nisa.com', 'www.coolcousin.com', 'www.casadaergonomia.com.br', 'swingers.club', 'ci-plugin.theloyaltyco.app', 'statusheart.com', 'city-adm.lviv.ua', 'hoaquadaklak.com', 'jimmybrings.com.au', 'band-vans.net', 'euromed.ua', 'www.tropicalsky.co.uk', 'yadacar.com', 'www.galeno.com.ar', 'www.tejaratfelez.com', 'tropistudio.com', 'www.sosohome.co.kr', 'localsloveus.com', 'www.beeducated.pk', 'revolutionwatch.com', 'www.sexygame666.com', 'www.bandvista.com', 'www.tripshock.com', 'www.socooc.com', 'forum.bodybuilding.nl', 'puntocellulare.it', 'www.iasparliament.com', 'www.clinicspots.com', 'www.ub.com.vn', 'aassttiinn.com', 'www.b-soccer.jp', 'nc4x4.com', 'www.doxdun.com', 'www.thelog.com', 'www.ask.ir', 'www.bancointernacional.com.ec', 'www.giftcardstore.ir', 'www.culturainglesa.net', 'www.cheltladiescollege.org', 'umonics.sg', 'tosbourn.com', 'www.mitradel.gob.pa', 'chat.wisvis.com', 'ariaimen.com', 'www.soyvida.com', 'braun-russia.ru', 'sauconsource.com', 'www.mouwazaf-dz.com', 'krasnoturinsk.info', 'wazobet.com']
+        urls = ["www.mini.co.uk", "www.wego.co.in", "emerald.widgetbot.io", "www.edreams.com"]
 
-        urls = ['carrodez.com.br', 'nacdnet.org']        
-        // urls = ['watchtvseries.video', 'myfreeblack.com', 'tuberel.com', 'pornerbros.com', 'see.xxx', 'wotofo.com', 'universalstandard.com', 'docusaurus.io']
-        // urls = ['www.amazonstock.com']
         for (var i = 0; i < urls.length; i++) {
             console.log("urls i", urls[i], urls.length, i)
             // const url = urls[i].split(",")[1];
