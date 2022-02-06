@@ -64,6 +64,12 @@ if __name__ == "__main__":
         sw_post_processor.get_missing_manifests(sw_base_folder)
         valid_linked_sw_paths = sw_post_processor.set_valid_linked_sw_paths(sw_base_folder)
 
+    no_content_resources = file_interactor.load_object_exists("no_content_sites")
+    yes_index = file_interactor.load_object_exists("yes_index")
+    print("no content", len(no_content_resources))
+    print("yes content", len(yes_index))
+    exit(0)
+
     
     usb_sw_linker = sw_post_processor.link_webapps_sws(os.getcwd() + "/local_vars/usb_sw_linker")
 
@@ -78,7 +84,8 @@ if __name__ == "__main__":
     if check_resources:
         correct_resources, no_content_resources = pwa_post_processor.get_correct_resources(final_sites, usb_sw_linker)
         print(len(correct_resources), "correct resources", len(no_content_resources), "no content resources")
-        correct_resources.update(no_content_resources)
+        # correct_resources.update(no_content_resources)
+        print(len(correct_resources), "correct resources", len(no_content_resources), "no content resources")
         file_interactor.save_object(correct_resources, "correct_resources")
         exit(0)
 
@@ -157,23 +164,59 @@ if __name__ == "__main__":
         sw_post_processor.get_sw_results(final_sw_paths, sw_paths_urls, sw_csv_file)
     if not os.path.exists(pwa_csv_file):
         pwa_post_processor.get_webapp_results(correct_resources, pwa_csv_file)
+    
+    pwa_post_processor.get_webapp_results(correct_resources, pwa_csv_file)
+    
 
     if not os.path.exists(manifest_csv_file) or not os.path.exists(features_csv_file):
         sw_post_processor.get_features_manifest_csvs(features_csv_file, manifest_csv_file, final_sw_paths)
 
+    # import subprocess
+    # import shutil
+    # for sw in correct_resources:
+    #     path = correct_resources[sw]
+    #     temp_output_folder = "/home/jesse/Documents/temp_usb/b"
+    #     subprocess.check_output("rm -rf " + temp_output_folder, shell=True)
+    #     os.mkdir(temp_output_folder)
+    #     # if not zipped:
+    #     if not os.path.exists(path):
+    #         continue
+    #     shutil.move(path, temp_output_folder)
+    #     try:
+            
+    #         subprocess.check_output("unzip -o '" + path + "' -d " + temp_output_folder, shell=True, stderr=subprocess.STDOUT)
+    #         try:
+    #             for subdir, _, files in os.walk(temp_output_folder):
+    #                 for file in files:
+    #                     with open(os.path.join(temp_output_folder, file), "r") as f:
+    #                         if "chromeerror" in f.read():
+    #                             print("Error chrome", file, sw, correct_resources[sw])
+    #         except Exception as e1:
+    #             print("read fail probably", e1, file)
+
+    #     except Exception as e:
+    #         print("unzipping failed", sw, e)
+
     total = file_interactor.load_object_exists("frameworks_total") or {}
-    total = data_aggregator.get_frameworks_whatruns([os.getcwd() + x for x in whatruns_folders], final_sw_paths.keys(), total)
-    exit(0)
+    # total = data_aggregator.get_frameworks_whatruns([os.getcwd() + x for x in whatruns_folders], final_sw_paths.keys(), total)
+    # exit(0)
     if not total or not len(total):
         total = data_aggregator.get_frameworks_wappalyzer(wappalyzer_folder, final_sw_paths.keys())
-        total = data_aggregator.get_frameworks_whatruns([os.getcwd() + x for x in whatruns_folders], final_sw_paths.keys(), total)
+        total = data_aggregator.get_frameworks_whatruns([os.getcwd() + x for x in whatruns_folders], correct_resources.keys(), total)
         file_interactor.save_object(total, "frameworks_total")
 
+    frameworks_blacklist = ["video", "twitter", "gallery", "infer", "captcha", "newrelic", "comscore", "varnish", "lightbox", "lazyload",\
+                            "criteo", "ubuntu", "scorecardresearch", "iis", "windows server", "google plus", "comments and reviews",\
+                            "addthis", "litespeed", "google adwords", "amazon ad system", "gravatar", "mediavine", "bing ads",\
+                            "wp rocket", "message board", "jquery easing", "disqus", "hoverintent", "taboola", "swfobject"]
     i = 1
     while i != 21:
         if not total:
             break
         most_occurring = max(total.items(), key=operator.itemgetter(1))[0]       
+        if True in [x.lower() in most_occurring.lower() for x in frameworks_blacklist]:
+            del total[most_occurring]
+            continue
         print("Frameworks most frequent", i, "&", most_occurring, "&", total[most_occurring])
         del total[most_occurring]
         i += 1

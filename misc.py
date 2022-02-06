@@ -208,6 +208,7 @@ class DataAggregator:
         processed_files = set()
 
         present = set()
+        handled_files = set()
         black_list = ["Analytics", "Miscellaneous", "Advertising", "Sales and Marketing",\
                       "Javascript Graphics", "Programming Language", "Payment Processors",\
                       "Build CI Systems", "Maps", "Hosting Panel", "Search Engine",\
@@ -233,8 +234,10 @@ class DataAggregator:
                        "amazon cloudfront", "babel", "google optimize", "site kit", "xenforo",\
                        "hotjar", "plesk", "Sign up for a plan", "compare plans", "cms", "facebook pixel", "Facebook",\
                        "google adsense", "doubleclick (dfp)", "embed js", "google ads", "shiv", "yoast seo",\
-                       "twitter emoji", "async", "respond js"]
-
+                       "twitter emoji", "async", "respond js", "33across", "thememintarrow-2018", "media2", \
+                       "select2", "themethe7", "theme", "plugins", "comm100", "c3", "http", "auth0", "mookie1",\
+                       "social9", "peer5", "g2crowd", "vid4u", "istat24", "jquery migrate"]
+        number_whitelist = ["d3", "k2", "nvd3", "i18next"]
         # if most_occurring in ["Javascript Frameworks", "Analytics", "Tag Managers", "Web Server", "Web Framework", "Conectar",\
             #                       "Advertising", "Programming Language", "Font Script", "Widgets", "CDN", "Miscellaneous", "Contraseña",\
             #                       "Sales and Marketing", "buscar personas, #hashtags, @páginas,! Grupos", "COSTARRICENSES",\
@@ -252,8 +255,13 @@ class DataAggregator:
 
         valid_site_domains = self.file_interactor.load_object_exists("valid_site_domains") or {}
         # valid_site_domains = {}
+        # total = self.file_interactor.load_object_exists("tmptotal")
+        # present = self.file_interactor.load_object_exists("tmppresent")
         folder_rank = {}
         for valid_site in valid_websites:
+            print("valid site", valid_site)
+            # self.file_interactor.save_object(total, "tmptotal")
+            # self.file_interactor.save_object(present, "tmppresent")
             for whatruns_folder in whatruns_folders:
             # if "_g" not in whatruns_folder:
             #     continue
@@ -262,26 +270,12 @@ class DataAggregator:
                     # print("oi")
                     if valid_site in present:
                         break
-                    # print("processed whatruns", count / len(valid_websites), end="\r")
-
-                    # if "wecare" not in valid_site:
-                    #     continue
-                    # print(valid_site, whatruns_folder)
-
-                    # print(valid_site)
-                    can_print = False
                     
                     for file in files:
-                        # if "newsclick" in valid_site:
-                        #     if "newsclick" in file:
-                        #         print(valid_site, file)
-                        #     can_print = True
-                        if "wecare" in valid_site:
-                            if "wecare" in file:
-                                print(valid_site, file)
-                            can_print = True
                         if valid_site in present:
                             break
+                        if file in handled_files:
+                            continue
                         if valid_site not in valid_site_domains:
                             valid_site_ext = self.extract(valid_site)
                             valid_site_domains[valid_site] = valid_site_ext
@@ -289,10 +283,8 @@ class DataAggregator:
                             valid_site_ext = valid_site_domains[valid_site]
                         if valid_site not in self.string_usb_to_csv(file) and valid_site_ext.domain not in self.string_usb_to_csv(file):
                             continue
-                        print("count", count, end="\r")
+                        print("count", count, whatruns_folder, file)
                         count += 1
-                        if can_print:
-                            print(valid_site, file, valid_site_ext.domain, valid_site_ext.suffix)
 
                         skip, temp = False, []
                         site_present = False
@@ -332,11 +324,22 @@ class DataAggregator:
                                         #     print("bootstrap l ", l)
                                         #     exit(0)
                                     if True not in [x.lower() in l.lower() for x in black_list]:
+                                        if self.hasNumbers(l):
+                                            if "jquery" in l.lower():
+                                                if not self.hasNumbers("".join(l.split(" ")[1:])):
+                                                    print("JQUERY", l)
+                                            l = l.split(" ")[0]
+                                            print("numbers", l)
                                         temp.append(l)
-                                        # else:
-                                            # break
+
+                        handled_files.add(file)
                         if not skip and site_present:
                             for l in temp:
+                                if "jQuery 3.3.1" in l or self.hasNumbers(l):
+                                    if l.lower() not in number_whitelist:
+                                        print("jquery found or numbers found", l, temp)
+                                        print(file, whatruns_folder)
+                                        exit(0)
                                 if l in total:
                                     total[l] += 1
                                 else:
@@ -348,11 +351,11 @@ class DataAggregator:
                             # if valid_site not in present:
                                 # print("whatruns not skipping")
                             present.add(valid_site)
-                        else:
+                        # else:
                             # if "buscar personas, #hashtags, @páginas,! Grupos" in open(whatruns_folder + file, "r").read():
                             #     print("sentence present")
-                            if os.stat(whatruns_folder + file).st_size > 50 and can_print:
-                                print("whatruns skipping", whatruns_folder.split("/")[-2], file, os.stat(whatruns_folder + file).st_size, site_present, file.split(".txt")[0], site_check, first_line)
+                            # if os.stat(whatruns_folder + file).st_size > 50 and can_print:
+                            #     print("whatruns skipping", whatruns_folder.split("/")[-2], file, os.stat(whatruns_folder + file).st_size, site_present, file.split(".txt")[0], site_check, first_line)
                             # if valid_site in present:
                                 # present.remove(valid_site)
                         # processed_files.add(file)

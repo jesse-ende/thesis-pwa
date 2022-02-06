@@ -817,7 +817,6 @@ class SWPostProcessor:
             output = subprocess.check_output("lizard -l js " + temp_js_path, shell=True)
         except subprocess.CalledProcessError as exc:
             # self.print_red("output error 1 " + output.decode()[:500])
-
             output = exc.output
             self.print_red("output error 2" + output.decode()[:500])
             # exit(0)

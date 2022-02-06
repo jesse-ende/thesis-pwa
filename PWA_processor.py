@@ -138,23 +138,23 @@ class PWAPostProcessor:
                                                     yes_index_mapping[site] = os.path.join(subdir, file)
                                                     break
 
-                                if not site in yes_index_mapping:
-                                    for zfile in zip_ref.namelist():
-                                        if site in zfile or original_file_site in zfile:
-                                            if ".htm" in zfile:
-                                                content = ""
-                                                try:
-                                                    content = zip_ref.read(zfile).decode("utf-8")
-                                                except:
-                                                    # print("decode error 1", zfile, file)
-                                                    try:
-                                                        content = zip_ref.read(zfile).decode("utf-8-sig")
-                                                    except:
-                                                        # print("decode error 2", zfile, file)
-                                                        continue
-                                                if "No Content: " in content:
-                                                    no_content_sites[site] = os.path.join(subdir, file)
-                                                    break
+                                # if not site in yes_index_mapping:
+                                #     for zfile in zip_ref.namelist():
+                                #         if site in zfile or original_file_site in zfile:
+                                #             if ".htm" in zfile:
+                                #                 content = ""
+                                #                 try:
+                                #                     content = zip_ref.read(zfile).decode("utf-8")
+                                #                 except:
+                                #                     # print("decode error 1", zfile, file)
+                                #                     try:
+                                #                         content = zip_ref.read(zfile).decode("utf-8-sig")
+                                #                     except:
+                                #                         # print("decode error 2", zfile, file)
+                                #                         continue
+                                #                 if "No Content: " in content:
+                                #                     no_content_sites[site] = os.path.join(subdir, file)
+                                #                     break
 
         self.file_interactor.save_object(no_content_sites, "no_content_sites")
         self.file_interactor.save_object(yes_index_mapping, "yes_index_mapping")
@@ -197,6 +197,22 @@ class PWAPostProcessor:
             with open(pwa_results_csv_file, "w") as f:
                 f.write("website;size;html;css;js\n")
         processed_pwas = self.data_aggregator.get_col_csv(pwa_results_csv_file, "website", sep=",")
+        lines = []
+        with open(pwa_results_csv_file, "r") as f:
+            for l in f:
+                lines.append(l)
+        first = True
+
+        # with open(pwa_results_csv_file + "minus_nocontent", "w") as f:
+        #     for l in lines:
+        #         if not first:
+        #             if l.split(",")[0] in final_webapp_paths:
+        #                 f.write(l)
+        #         else:
+        #             first = False
+        #             f.write(l)
+        # exit(0)
+        return
 
         print("Getting PWA results")
         for webapp in final_webapp_paths:

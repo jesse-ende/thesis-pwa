@@ -18,82 +18,31 @@ import seaborn as sns
 import tldextract
 from matplotlib import rcParams
 
-def fit_distribution_ks(data, name, scipy_func, _xlabel, _ylabel, figname, edges, hist_values):
-    output_path = os.getcwd() + "/results/"
-    if scipy_func == ss.lognorm:
-        dist = "lognorm"
-    elif scipy_func == ss.exponweib:
-        dist = "weib"
-    elif scipy_func == ss.norm:
-        dist = "norm"
-    elif scipy_func == ss.cauchy:
-        dist = "cauchy"
-    elif scipy_func == ss.gamma:
-        dist = "gamma"
-    elif scipy_func == ss.expon:
-        dist = "exp"
-    elif scipy_func == ss.pareto:
-        dist = "pareto"
-    figname += dist
+def get_latex_stats(data):
+    print("\\textbf{Mean} & " + (str(np.mean(data))), "\\\\ \hline")
+    print("\\textbf{Standard deviation} & " + str(np.std(data)), "\\\\ \hline")
+    print("\\textbf{Minimum} & " + str(min(data)), "\\\\ \hline")
+    print("\\textbf{25th-percentile} & " + str(np.quantile(data, 0.25)), "\\\\ \hline")
+    print("\\textbf{Median} & " + str(np.median(data)), "\\\\ \hline")
+    print("\\textbf{75th-percentile} & " + str(np.quantile(data, 0.75)), "\\\\ \hline")
+    print("\\textbf{Maximum} & " + str(max(data)), "\\\\ \hline")
 
-    first_ks_pvalue = ss.kstest(data, "norm")
-    print("first ks test", first_ks_pvalue)
-    # print("lognorm", ss.kstest(data, "lognorm"))
-    # print("exponweib", ss.kstest(data, "exponweib"))
-    # print("gamma", ss.kstest(data, "gamma"))
-    print("expon", ss.kstest(data, "expon"))
-    print("cauchy", ss.kstest(data, "cauchy"))
-
-    params = scipy_func.fit(data)
-    print("param fit", name, dist, params)
-    if scipy_func == ss.lognorm or scipy_func == ss.exponweib or scipy_func == ss.gamma or scipy_func == ss.expon or scipy_func == ss.pareto:
-        X = scipy_func.rvs(*params, size=10000)
-    elif scipy_func == ss.norm or scipy_func == ss.cauchy:
-        X = scipy_func.rvs(loc=params[0], scale=params[1], size=10000)
-
-    # X = scipy_func.rvs(loc=6.6, scale=-2.6* 10 ** -18, s=47, size=10000)
-    # X = scipy_func.rvs(*params, size=10000)
-    print(len(X))
-    # P = scipy_func.fit(X)
-    # print("p prop", P)
-    ks_test_output = ss.ks_2samp(data, X)
-    print("ks test", ks_test_output)
-    print()
-
-    if ks_test_output[1] < 0.05:
-        return
-    print("high p value", name, dist, params)
-    hist_values2, edges2 = np.histogram(X, bins=100, density=True)
-    plt.xlim([0, 250])
-    plt.plot(edges2[:-1], hist_values2, color="blue")
-    X2 = np.sort(data)
-    F2 = np.array(range(len(data)))/float(len(data))
-    plt.plot(X2, F2, color="blue")
-    print(X2)
-    print(plt.xticks())
-    plt.show()
-    # exit(0)
-    # plt.plot(edges[:-1], hist_values, color="grey")
-    plt.show()
-    # plt.hist(clipped, bins=bin_count, color="blue")
-    plt.xlabel(_xlabel)
-    plt.ylabel(_ylabel)
-    plt.savefig(output_path + figname + ".pdf")
-    plt.close()
-
-def get_pwa_results(data, non_duplicate_sites):
+def get_pwa_results(data, black_list):
     output_path = os.getcwd() + "/results/"
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-    data = data[data['website'].isin(non_duplicate_sites)]
     
+    data = data[~data['website'].isin(black_list)]
+    file_add = ""
     size = True
     if size:
         wa_sizes_kb = data['size'] / 1000
-        data['size'] /= 1000
-        print("pwa stats size avg", np.mean(data["size"]), "standard deviation", np.std(data['size']), "median", np.median(data['size']), np.quantile(data['size'], [0, 0.25, 0.5, 0.75, 1]))
-        print("pwa stats max", data[data['size'] == max(data['size'])]['website'] + " " + str(max(data['size'])))
-        print("pwa stats min", data[data['size'] == min(data['size'])]['website'] + " " + str(min(data['size'])))
+        # data.loc['size'] = data['size'] / 1000
+        print("pwa stats size avg", np.mean(wa_sizes_kb), "standard deviation", np.std(wa_sizes_kb), "median", np.median(wa_sizes_kb), np.quantile(wa_sizes_kb, [0, 0.25, 0.5, 0.75, 1]))
+        # print("pwa stats max", data['size' == max(data['size'])]['website'] + " " + str(max(wa_sizes_kb)))
+        print("pwa stats min", data[data['size'] == min(data['size'])]['website'] + " " + str(min(wa_sizes_kb)))
+        get_latex_stats(wa_sizes_kb)
+        print("test mean", np.median(wa_sizes_kb))
         low, high = 0, int(np.ceil(wa_sizes_kb.max()))
         bins = np.linspace(low, high, 20000)
         # print("low", low, "high", high)
@@ -147,38 +96,39 @@ def get_pwa_results(data, non_duplicate_sites):
         # print(sums)
         # print(counts[:100], unique[:100], len(unique[unique < new_bins[1]]), len(unique[mask]), new_bins[0])
 
-        # X = ss.lognorm.rvs(0.954, loc=0.2, scale=5, size=10000)
 
         hist_values, edges = np.histogram(clipped, bins=bin_count, density=False)
         # plt.plot(edges[:-1], hist_values, color="grey")
         # clipped = np.clip(wa_sizes_kb, 0, 20000)
-        plt.boxplot(data['size'])
+        plt.boxplot(clipped)
         # plt.show()
         # plt.hist(clipped, bins=bin_count, color="blue")
         plt.xlabel("Size")
-        # plt.ylabel("Occurrences")
         frame1 = plt.gca()
         frame1.axes.xaxis.set_ticklabels([])
         plt.ylabel("kB")
-        # plt.("")
-        plt.savefig(output_path + "wa_size" + ".pdf")
+        plt.savefig(output_path + "wa_size" + file_add + ".pdf")
+        plt.savefig(output_path + "wa_size" + file_add + ".png")
+
         plt.close()
 
-        plt.boxplot(data['size'], vert=False)
-        plt.xlim([-1000, 20000])
-        plt.savefig(output_path + "wa_size_zoomed" + ".pdf")
+        plt.boxplot(wa_sizes_kb, vert=True)
+        plt.ylim([-1000, 20000])
+        plt.xlabel("Size")
+        frame1 = plt.gca()
+        frame1.axes.xaxis.set_ticklabels([])
+        plt.ylabel("kB")
+
+        plt.savefig(output_path + "wa_size_zoomed" + file_add + ".pdf")
+        plt.savefig(output_path + "wa_size_zoomed" + file_add + ".png")
+
         plt.close()
-
-        # hist_values, edges = np.histogram(clipped, bins=bin_count, density=True)
-
-        for func in [ss.lognorm, ss.expon, ss.norm, ss.cauchy, ss.exponweib, ss.gamma, ss.pareto]:
-            fit_distribution_ks(data['size'], "wa size", func, "Size (MB)", "Occurrences", "wa_size_", edges, hist_values)
 
     loc = True
     fig, ax = plt.subplots(figsize=(8,8))
     if loc:
         def get_hist(col_name, threshold, bin_count, do_clip=False):
-
+            print(np.unique(data[col_name]))
             print("pwa stats " + col_name + " avg " + str(np.mean(data[col_name])) + " standard deviation " + str(np.std(data[col_name])) + " median " + str(np.median(data[col_name])) + str(np.quantile(data[col_name], [0, 0.25, 0.5, 0.75, 1])))
             print("pwa stats max", col_name, data[data[col_name] == max(data[col_name])]['website'] + " " + str(max(data[col_name])))
             print("pwa stats min", col_name, data[data[col_name] == min(data[col_name])]['website'] + " " + "min val " + str(min(data[col_name])), "\nmin amount sites", len(data[data[col_name] == min(data[col_name])]))
@@ -207,13 +157,33 @@ def get_pwa_results(data, non_duplicate_sites):
                 hist_values, edges = np.histogram(data[col_name], bins=bin_count, density=False)
 
             return hist_values, edges
+
         all_data, colors, labels = [], [], []
         power = 3
+        # for row in data:
+        #     print("row", row)
+        # exit(0)
+        with open(os.getcwd() + "/CSVs/final_pwa.csv", "r") as f:
+            for l in f:
+                for i in l.split(","):
+                    if i == "":
+                        print("emtpy", l)
+                        exit(0)
 
+        summary_mean, summary_sd, summary_min, summary_25, summary_median, summary_75, summary_max = [], [], [], [], [], [], []
         for lang in ["html", "css", "js"]:
+            data[lang] = data[lang].astype(int)
             hist_values, edges = get_hist(lang, 400000, "fd", do_clip=False)
+            
             threshold = 300000
             clipped = np.clip(data[lang], 0, threshold)
+            summary_mean.append(str(int(np.round(np.mean(data[lang])))))
+            summary_sd.append(str(int(np.round(np.std(data[lang])))))
+            summary_min.append(str(int(np.round(min(data[lang])))))
+            summary_25.append(str(int(np.round(np.quantile(data[lang], 0.25)))))
+            summary_median.append(str(int(np.round(np.median(data[lang])))))
+            summary_75.append(str(int(np.round(np.quantile(data[lang], 0.75)))))
+            summary_max.append(str(int(np.round(max(data[lang])))))
 
             color = "grey"
             if lang == "css":
@@ -223,6 +193,14 @@ def get_pwa_results(data, non_duplicate_sites):
             colors.append(color)
             labels.append(lang.upper())
             all_data.append(clipped)
+    
+        print("\\textbf{Mean} & "," & ".join([str(x) for x in summary_mean]), "\\\\ \hline")
+        print("\\textbf{Standard deviation} & ", " & ".join([str(x) for x in summary_sd]), "\\\\ \hline")
+        print("\\textbf{Minimum} & ", " & ".join([str(x) for x in summary_min]), "\\\\ \hline")
+        print("\\textbf{25th-percentile} & ", " & ".join([str(x) for x in summary_25]), "\\\\ \hline")
+        print("\\textbf{Median} & ", " & ".join([str(x) for x in summary_median]), "\\\\ \hline")
+        print("\\textbf{75th-percentile} & ", " & ".join([str(x) for x in summary_75]), "\\\\ \hline")
+        print("\\textbf{Maximum} & ", " & ".join([str(x) for x in summary_max]), "\\\\ \hline")
 
         bin_count = 20
         ax.hist(all_data, bins=bin_count, color=colors, label=labels)
@@ -235,7 +213,9 @@ def get_pwa_results(data, non_duplicate_sites):
 
         plt.xlabel(f"Lines of code (x10$^{power}$)")
         plt.ylabel(f"Occurrences")            
-        plt.savefig(output_path +  "all_languages_wa" + ".pdf")
+        plt.savefig(output_path +  "all_languages_wa" + file_add + ".pdf")
+        plt.savefig(output_path +  "all_languages_wa" + file_add + ".png")
+
         plt.close()
 
 def get_audit_results(data, name):
@@ -313,12 +293,18 @@ def get_audit_results(data, name):
 
         plt.legend(loc="upper left")
         plt.savefig(output_path + name + "_all" + ".pdf")
+        plt.savefig(output_path + name + "_all" + ".png")
+
         plt.xlim([80, 102])
         plt.xticks(np.linspace(80, 100, 11) - 0.5, [int(x) for x in np.linspace(80, 100, 11)])
         plt.hist(all_data, bins=my_bins, color=colors[:len(all_data)], label=all_keys, alpha=1, stacked=True, density=False)
         plt.savefig(output_path + name + "_all_zoomed" + ".pdf")
+        plt.savefig(output_path + name + "_all_zoomed" + ".png")
+
     else:
         plt.savefig(output_path + name + "_all" + ".pdf")
+        plt.savefig(output_path + name + "_all" + ".png")
+
     plt.close()
 
     # for key in data.keys():
@@ -347,6 +333,8 @@ def get_audit_results(data, name):
     #         plt.legend(loc="upper left")
     #     # break
     #     plt.savefig(output_path + name + "_" + key + ".pdf")
+    #     plt.savefig(output_path + name + "_" + key + ".png")
+
     #     plt.close()
 
 def get_json_results(data, name):
@@ -366,13 +354,23 @@ def get_json_results(data, name):
             print(data[data[key] == 1]['website'])
     plt.close()
     rcParams.update({'figure.autolayout': True})
-    print(name, xs, ys)
-    plt.barh(xs, ys, color="grey")
+    sorted_indexes = np.argsort(ys)
+    xs_sorted, ys_sorted = [], []
+    for i in sorted_indexes:
+        xs_sorted.append(xs[i])
+        ys_sorted.append(ys[i])
+    print(name, xs_sorted, ys_sorted)
+    
+    print(sorted_indexes)
+
+    plt.barh(xs_sorted, ys_sorted, color="grey")
     # plt.plot(bin_centers, hist)
     plt.xlabel("Occurrences")
     plt.ylabel(name)
     # plt.show()
     plt.savefig(output_path + name + ".pdf")
+    plt.savefig(output_path + name + ".png")
+
 
     print(ys)
 
@@ -409,6 +407,7 @@ def get_sw_results(data, non_duplicate_sites):
         sw_sizes_kb = np.array(data['size'])
         low, high = 0, int(np.ceil(sw_sizes_kb.max()))
         bins = np.linspace(low, high, 20000)
+        get_latex_stats(sw_sizes_kb)
 
         size_threshold = 500
         end = -1
@@ -446,15 +445,15 @@ def get_sw_results(data, non_duplicate_sites):
         plt.ylabel("Occurrences")
         
         plt.savefig(output_path + "sw_size" + log + ".pdf")
+        plt.savefig(output_path + "sw_size" + log + ".png")
+
         edges = []
         hist_values = []
         # plt.savefig(output_path + "sw_size_zoomed" + log + ".pdf")
+            # plt.savefig(output_path + "sw_size_zoomed" + log + ".png")
+
         plt.close()
 
-        for func in [ss.lognorm, ss.expon, ss.norm, ss.cauchy, ss.exponweib, ss.gamma]:
-            fit_distribution_ks(data['size'], "sw size", func, "Size (kB)", "Occurrences", "sw_size_", edges, hist_values)
-            # break
-    
     sw_ccns = True
     if sw_ccns:
         # fig, ax = plt.subplots(figsize=(8,8))
@@ -507,6 +506,8 @@ def get_sw_results(data, non_duplicate_sites):
         plt.ylabel(f'Occurrences ($x10^{4}$)')
 
         plt.savefig(output_path + "ccns" + ".pdf")
+        plt.savefig(output_path + "ccns" + ".png")
+
         plt.close()
 
     events = True
@@ -530,16 +531,20 @@ def get_sw_results(data, non_duplicate_sites):
         print(unique[:10])
         print(len(unique), len(counts))
         plt.gca().invert_yaxis()
+        sorted_indexes = np.argsort(counts)[::-1]
         # hist, bin_edges = np.histogram(data['events'], bins=40)
         # bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
         # plt.tight_layout()
-        plt.barh(unique, counts, color="grey")
+        
+        plt.barh(unique[sorted_indexes], counts[sorted_indexes], color="grey")
 
         # plt.plot(bin_centers, hist)
         plt.xlabel("Occurrences")
         plt.ylabel("Event")
         # plt.show()
         plt.savefig(output_path + "events" + ".pdf")
+        plt.savefig(output_path + "events" + ".png")
+
         plt.close()
 
     loc = True
@@ -601,6 +606,8 @@ def get_sw_results(data, non_duplicate_sites):
         plt.ylabel("Occurrences")
         
         plt.savefig(output_path + "sw_loc" + log + ".pdf")
+        plt.savefig(output_path + "sw_loc" + log + ".png")
+
         plt.close()
 
 def filter_results_file(filtered_websites, results_file_path, sep=";", output_path="/CSVs/filtered_data.csv"):
@@ -664,9 +671,13 @@ def get_col_csv(filepath, col_index, sep=";"):
 if __name__ == "__main__":
 
     file_interactor = FileInteractor()
-    final_sites = file_interactor.load_object_exists("final_sw_paths")
-    
-    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csv", sep=",")
+    # final_sites = file_interactor.load_object_exists("final_sw_paths")
+    pwa_blacklist = []
+    with open(os.getcwd() + "/pwa_blacklist.txt", "r") as f:
+        for l in f:
+            pwa_blacklist.append(l.strip())
+
+    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csvminus_nocontent", sep=",")
     # wa_data = wa_data[wa_data['website'].isin(filtered_sites)]
     # wa_data = wa_data.drop_duplicates(subset=['website'])
 
@@ -681,12 +692,11 @@ if __name__ == "__main__":
 
     ylt_data = pd.read_csv(os.getcwd() + "/CSVs/final_ylt.csv", sep=";")
     lighthouse_data = pd.read_csv(os.getcwd() + "/CSVs/final_lighthouse.csv", sep=";")
-
-    print("final sites len", len(final_sites))
+    # print("final sites len", len(final_sites))
     # filter_results_file(filtered_sites, sw_data)
-    get_sw_results(sw_data, list(set_sws))
-    get_pwa_results(wa_data, final_sites.keys())
-    get_json_results(features_data, "Feature")
+    # get_sw_results(sw_data, list(set_sws))
+    # get_pwa_results(wa_data, pwa_blacklist)
+    # get_json_results(features_data, "Feature")
     get_json_results(manifest_data, "Manifest key")
-    get_audit_results(ylt_data, "ylt")
-    get_audit_results(lighthouse_data, "Lighthouse")
+    # get_audit_results(ylt_data, "ylt")
+    # get_audit_results(lighthouse_data, "Lighthouse")
