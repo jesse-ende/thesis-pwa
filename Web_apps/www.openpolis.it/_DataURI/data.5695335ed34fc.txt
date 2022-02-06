@@ -1,1 +1,0 @@
-/extensions/amp-sidebar/0.1/amp-sidebar.css

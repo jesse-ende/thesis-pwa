@@ -1,1 +1,0 @@
--- apache-style license

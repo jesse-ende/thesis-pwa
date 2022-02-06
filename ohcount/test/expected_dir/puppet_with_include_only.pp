@@ -1,1 +1,0 @@
-puppet	code	include ::postfix

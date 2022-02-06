@@ -1,1 +1,0 @@
-/extensions/amp-social-share/0.1/amp-social-share.css

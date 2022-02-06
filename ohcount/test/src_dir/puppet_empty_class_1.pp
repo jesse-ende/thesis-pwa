@@ -1,4 +1,0 @@
-class tester (
-) {
-  "Some Content"
-}

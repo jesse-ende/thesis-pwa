@@ -1,1 +1,0 @@
-/extensions/amp-selector/0.1/amp-selector.css

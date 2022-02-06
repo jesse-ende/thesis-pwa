@@ -1,1 +1,0 @@
-// Reciprocal Public License

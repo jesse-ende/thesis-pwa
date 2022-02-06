@@ -1,1 +1,0 @@
-data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 21 36'%3E%3Ctitle%3EBack%3C/title%3E%3Cpolygon fill='%23312D2A' class='a' points='21 3 18 0 3.13 14.87 0 18 3 21 18 36 21 33 6.11 17.89 21 3'/%3E%3C/svg%3E
