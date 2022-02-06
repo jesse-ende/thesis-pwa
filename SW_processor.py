@@ -1,4 +1,7 @@
-from multiprocessing import process
+"""
+The SW post processor that performs all post processing related to the SWs. This includes things as beautification, scraping missing
+indexes, scraping missing manifests, etc.
+"""
 from misc import Output, DataAggregator, FileInteractor, URLInteractor
 import os
 import subprocess
@@ -11,7 +14,6 @@ import bs4
 import gzip
 import ast
 
-# TODO add beautify_SWS function of other file
 class SWPostProcessor:
     def __init__(self, path) -> None:
         self.sw_base_folder = path
@@ -23,6 +25,9 @@ class SWPostProcessor:
         self.extract = tldextract.TLDExtract()
     
     def link_webapps_sws(self, path):
+        """
+        Links the PWA domains to the SW domains that are stored in a file
+        """
         webapp_sw_linker = {}
         with open(path, "r") as f:
             for l in f:
@@ -31,6 +36,9 @@ class SWPostProcessor:
         return webapp_sw_linker
 
     def get_static_sw_paths(self, valid_linked_sw_sites):
+        """
+        Filters out the SWs that have a static import with an "importScripts" statement
+        """
         static_sw_paths = self.file_interactor.load_object_exists("static_sw_paths") or set()
         
         if not len(static_sw_paths):
@@ -52,6 +60,9 @@ class SWPostProcessor:
         return static_sw_paths
     
     def get_final_sites(self, valid_linked_sw_sites):
+        """
+        Gets the final domains as a dictionary with their values being the path of their beautified SWs
+        """
         final_sites = self.file_interactor.load_object_exists("final_sites") or set()
         final_sw_paths = self.file_interactor.load_object_exists("final_sw_paths") or {}
 
@@ -78,17 +89,14 @@ class SWPostProcessor:
 
         return final_sites, final_sw_paths
 
-    def get_valid_linked_sw_sites(self, valid_linked_sw_paths):
+    def get_valid_linked_sw_sites(self, valid_linked_sw_paths, multiple_domain_sites, domain_blacklist):
+        """
+        Sets the filtered list of valid SW domain of unique domains
+        """
         valid_linked_sw_sites = self.file_interactor.load_object_exists("valid_linked_sw_paths_domain_suffix") or {}
 
         if len(valid_linked_sw_sites) == 0:
-            multiple_domain_sites = {"renault": "fr", "properati": "com.ar", "pinterest": "com", "serene-production-ezycommerce.ezyflight": "se", "michaelpage": "com",\
-                                     "tastemade": "com.br", "mini": "co.uk", "emerald.widgetbot": "io", "underarmour": "co.jp", "chrono24": "com", "edreams": "com",\
-                                     "europcar": "co.uk", "gogocarto": "fr", "clasf": "com.br", "ifood": "com.br", "eventbrite": "co.uk", "fashiola": "co.uk",\
-                                     "avrotros": "nl", "adidas": "co.id", "cuponation": "com.mx", "centrum": "cz", "michelin": "ru", "ebay": "com", "pizzahut": "com.tw",\
-                                     "uol": "com.br", "wego": "co.in", "airbnb": "com", "habitissimo": "es", "supercheapauto": "com.au", "autofun": "co.th",\
-                                     "clearly": "ca", "developers.google": "com", "cloud.google": "com", "wne32.csb" : "app", "firebase.google": "com", "netbet": "de"}
-            domain_blacklist = set(["renault", "pinterest", "centrum", "netbet", "widgetbot"])
+            domain_blacklist = set(domain_blacklist)
 
             for site in valid_linked_sw_paths:
                 if site.startswith("www."):
@@ -131,6 +139,9 @@ class SWPostProcessor:
         return valid_linked_sw_sites
     
     def run_ylt(self, website, output_paths):
+        """
+        Runs the yellowlabtools auditing tool for website
+        """
         print("Running ylt", website)
 
         for output_path in output_paths:
@@ -156,6 +167,9 @@ class SWPostProcessor:
         return True
 
     def run_lighthouse(self, website, output_paths):
+        """
+        Runs the lighthouse tool for website
+        """
         print("Running lighthouse", website)
 
         for output_path in output_paths:
@@ -178,18 +192,27 @@ class SWPostProcessor:
         return True
 
     def check_lighthouse_score_file(self, file_path):
+        """
+        Checks whether the lighthouse score file is valid
+        """
         _, scores = self.get_lighthouse_scores(file_path)
         if None in scores:
             return False
         return True
 
     def check_ylt_score_file(self, file_path):
+        """
+        Checks whether the yellowlabtools score file is valid
+        """
         _, scores = self.get_ylt_scores(file_path)
         if None in scores or not len(scores):
             return False
         return True
 
     def get_missing_audit(self, site, audit_sites, scores_folders, audit_func, audit_file_check_func, *audit_args):
+        """
+        Wrapper for getting the missing audit site 'site' with appropriate audit funcion 'audit_func'
+        """
         found = False
         for score_folder in scores_folders:
             if found:
@@ -207,13 +230,9 @@ class SWPostProcessor:
             if not audit_func(site, *audit_args[1:]):
                 if site.startswith("www."):
                     site = site[4:]
-                    # audit_args['site'] = site
-                    # (*audit_args)[0] = site
                     audit_func(site, *audit_args[1:])
                 else:
                     site = "www." + site
-                    # (*audit_args)[0] = site
-                    # audit_args['site'] = site
                     audit_func(site, *audit_args[1:])
 
     def get_missing_ylt(self, site, ylt_sites, scores_folders):
@@ -223,6 +242,9 @@ class SWPostProcessor:
         self.get_missing_audit(site, lighthouse_sites, scores_folders, self.run_lighthouse, self.check_lighthouse_score_file, site, scores_folders)
 
     def remove_and_compress_json(self, folder, ext=".gz"):
+        """
+        Removes and compresses a json (audit) file
+        """
         for f in os.listdir(folder):
             if not os.path.join(folder, f).endswith(ext):
                 if os.stat(os.path.join(folder, f)).st_size > 0:
@@ -231,6 +253,9 @@ class SWPostProcessor:
                     os.remove(os.path.join(folder, f))
 
     def get_indexes_amount(self):
+        """
+        Counts the amount of index pages in the folder 'sw_base_folder'
+        """
         sw_dirs = os.listdir(self.sw_base_folder)
         index_sites = self.file_interactor.load_object_exists("index_sites") or set()
         manifest_sites = self.file_interactor.load_object_exists("manifest_sites") or set()
@@ -257,7 +282,37 @@ class SWPostProcessor:
 
         return len(index_sites), len(manifest_sites)
 
+    def beautify_sws(self):
+        """
+        Beautifies the SWs in the folder 'sw_base_folder'
+        """
+        sw_dirs = os.listdir(self.sw_base_folder)
+        for site in sw_dirs:
+            files = [f for f in os.listdir(os.path.join(self.sw_base_folder, site)) if os.path.isfile(os.path.join(self.sw_base_folder, site, f))]
+            if "beautified.js" not in files:
+                files = set(files)
+                remove_files = set()
+                for file in files:
+                    if "http" in file or "requests" == file or "features.json" in file or "manifest" in file or "imported_files" in file or "index.html" in file:
+                        remove_files.add(file)
+
+                files.difference_update(remove_files)
+                if len(files) == 1:
+                    with open(os.path.join(self.sw_base_folder, site, list(files)[0]), "r") as f:
+                        sw_content = f.read()
+                    if not sw_content.strip().startswith("<"):
+                        beautified_js = jsbeautifier.beautify(sw_content)
+                        with open(os.path.join(self.sw_base_folder, site, "beautified.js"), "w") as f2:
+                            f2.write(beautified_js)
+                else:
+                    print("Files length unequal 1. check the files in sw subdir:", self.sw_base_folder, site)
+                    exit(0)
+
     def get_missing_indexes(self):
+        """
+        Gets the missing index pages of SWs that have a beautified SW file
+        """
+        print("Getting missing indexes...")
         sw_dirs = os.listdir(self.sw_base_folder)
         for site in sw_dirs:
             print("Scraping missing indexes progress:", sw_dirs.index(site) / len(sw_dirs), end="\r")
@@ -270,52 +325,56 @@ class SWPostProcessor:
                             with open(os.path.join(self.sw_base_folder, site, "index.html"), "w") as f:
                                 f.write(index_content)
 
-    def get_missing_manifests(self, sw_base_folder):
+    def get_missing_manifests(self):
+        """
+        Gets the missing manifests of the SWs in folder 'sw_base_folder'
+        """
+        print("Getting missing manifests...")
         valid_linked_sw_paths = self.file_interactor.load_object_exists("valid_linked_sw_paths") or {}
-        manifest_failed_scraping, manifest_succeeded_scraping = set(), set()
-        for site in os.listdir(sw_base_folder):
-            if site in valid_linked_sw_paths:
-                    continue
-            files = [f for f in os.listdir(os.path.join(sw_base_folder, site)) if os.path.isfile(os.path.join(sw_base_folder, site, f))]
-            sw_folder = os.path.join(sw_base_folder, site)
+        manifest_failed_scraping = self.file_interactor.load_object_exists("manifest_failed_scraping") or set()
+        manifest_succeeded_scraping = self.file_interactor.load_object_exists("manifest_succeeded_scraping") or set()
+        for site in os.listdir(self.sw_base_folder):
+            if site in valid_linked_sw_paths and site not in manifest_failed_scraping:
+                continue
+            files = [f for f in os.listdir(os.path.join(self.sw_base_folder, site)) if os.path.isfile(os.path.join(self.sw_base_folder, site, f))]
+            sw_folder = os.path.join(self.sw_base_folder, site)
             if "beautified.js" in files and "index.html" in files and os.stat(os.path.join(sw_folder, "index.html")).st_size > 0:
-                if os.path.exists(os.path.join(sw_folder, "index.html")) and os.stat(os.path.join(sw_folder, "index.html")).st_size > 0:
-                    index_content = open(os.path.join(sw_folder, "index.html"), "r").read()
-                else:
-                    index_content = self.url_interactor.get_content_url("https://" + site)
+                index_content = open(os.path.join(sw_folder, "index.html"), "r").read()
+            else:
+                index_content = self.url_interactor.get_content_url("https://" + site)
 
-                if index_content:
-                    if not os.path.exists(os.path.join(sw_folder, "index.html")):
-                        with open(os.path.join(sw_folder, "index.html"), "w") as f:
-                            f.write(index_content)
-                    manifest_urls = self.get_manifest_link_html(index_content, content=True)
-                    if len(manifest_urls):
-                        valid_linked_sw_paths[site] = os.path.join(sw_folder, "beautified.js")
-                        if not "manifest.json" in files:
-                            for url in manifest_urls:
-                                if "http" not in url:
-                                    while url.startswith(".") or url.startswith("/"):
-                                        url = url[1:]
-                                    if site not in url:
-                                        url = "https://" + site + "/" + url
-                                    else:
-                                        url = "https://" + url
-                                if validators.url(url):
-                                    succeed = self.scrape_manifest(url, site)
-                                    if not succeed:
-                                        self.print_red("not succeeded", url)
-                                        manifest_failed_scraping.add(site)
-                                    else:
-                                        self.print_green("succeeded", site, url)
-                                        manifest_succeeded_scraping.add(site)
-                                        if site in manifest_failed_scraping:
-                                            manifest_failed_scraping.remove(site)
+            if index_content:
+                if not os.path.exists(os.path.join(sw_folder, "index.html")):
+                    with open(os.path.join(sw_folder, "index.html"), "w") as f:
+                        f.write(index_content)
+                manifest_urls = self.get_manifest_link_html(index_content, content=True)
+                if len(manifest_urls):
+                    valid_linked_sw_paths[site] = os.path.join(sw_folder, "beautified.js")
+                    if not "manifest.json" in files:
+                        for url in manifest_urls:
+                            if "http" not in url:
+                                while url.startswith(".") or url.startswith("/"):
+                                    url = url[1:]
+                                if site not in url:
+                                    url = "https://" + site + "/" + url
                                 else:
-                                    self.print_red("no potential", sw_folder,  url)
-                        if "manifest.json" in files:
-                            manifest_succeeded_scraping.add(site)
-                            if site in manifest_failed_scraping:
-                                manifest_failed_scraping.remove(site)
+                                    url = "https://" + url
+                            if validators.url(url):
+                                succeed = self.scrape_manifest(url, os.path.join(self.sw_base_folder, site))
+                                if not succeed:
+                                    self.print_red("manifest scraping not succeeded", url)
+                                    manifest_failed_scraping.add(site)
+                                else:
+                                    self.print_green("manifest scraping succeeded", site, url)
+                                    manifest_succeeded_scraping.add(site)
+                                    if site in manifest_failed_scraping:
+                                        manifest_failed_scraping.remove(site)
+                            else:
+                                self.print_red("no potential", sw_folder,  url)
+                    if "manifest.json" in files:
+                        manifest_succeeded_scraping.add(site)
+                        if site in manifest_failed_scraping:
+                            manifest_failed_scraping.remove(site)
                 else:
                     print(site, "no index content")
 
@@ -324,17 +383,20 @@ class SWPostProcessor:
 
         self.file_interactor.save_object(valid_linked_sw_paths, "valid_linked_sw_paths")
 
-    def set_valid_linked_sw_paths(self, sw_base_folder):
+    def set_valid_linked_sw_paths(self):
+        """
+        Sets the valid linked sw paths of SWs that have an index, linked manifest and beautified SW
+        """
         valid_linked_sw_paths = {}
-        length = len(os.listdir(sw_base_folder))
+        length = len(os.listdir(self.sw_base_folder))
         count = 0
-        for sw_folder in os.listdir(sw_base_folder):
+        for sw_folder in os.listdir(self.sw_base_folder):
             print(count / length, end="\r")
             count += 1
             site = sw_folder
             if site.startswith("www."):
                 site = site[4:]
-            sw_folder = os.path.join(sw_base_folder, sw_folder)
+            sw_folder = os.path.join(self.sw_base_folder, sw_folder)
             if os.path.exists(os.path.join(sw_folder, "beautified.js")):
                 if os.path.exists(os.path.join(sw_folder, "index.html")):
                     if os.path.exists(os.path.join(sw_folder, "manifest.json")) and os.stat(os.path.join(sw_folder, "manifest.json")).st_size > 0:
@@ -346,6 +408,9 @@ class SWPostProcessor:
         return valid_linked_sw_paths
 
     def get_features_manifest_csvs(self, features_csv_file, manifest_csv_file, final_sw_paths):
+        """
+        Gets the features and manifests from the SWs and stores them in 2 CSVs
+        """
         manifest_keys = ["background_color", "categories", "description", "dir", "display", "iarc_rating_id", "icons", "lang", "name", "orientation", "prefer_related_applications", "protocol_handlers", "related_applications", "scope", "screenshots", "short_name", "shortcuts", "start_url", "theme_color"]
 
         handle = open(features_csv_file, "w")
@@ -396,6 +461,9 @@ class SWPostProcessor:
                 failed_manifest.add(sw)
 
     def get_single_domains(self, domain_suffix_mapping):
+        """
+        Filters a dictionary of domains with multiple suffixes according to the ranking defined by 'top_1m_domain_mapping'
+        """
         res = {}
         top_1m_domain_mapping = self.file_interactor.load_object_exists("top1m_sites_domain_mapping")
         for dom in domain_suffix_mapping:
@@ -418,20 +486,22 @@ class SWPostProcessor:
         return res
 
     def remove_js_comments(self, string):
+        """
+        Removes JS comments from a string of JS code
+        """
         pattern = r"(\".*?\"|\'.*?\')|(/\*.*?\*/|//[^\r\n]*$)"
-        # first group captures quoted strings (double or single)
-        # second group captures comments (//single-line or /* multi-line */)
         regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
-        def _replacer(match):
-            # if the 2nd group (capturing comments) is not None,
-            # it means we have captured a non-quoted (real) comment string.
+        def match_replacer(match):
             if match.group(2) is not None:
-                return "" # so we will return empty to remove the comment
-            else: # otherwise, we will return the 1st group
-                return match.group(1) # captured quoted-string
-        return regex.sub(_replacer, string)
+                return ""
+            else: 
+                return match.group(1)
+        return regex.sub(match_replacer, string)
 
     def scrape_manifest(self, url, sw_folder):
+        """
+        Scrapes a manifest with URL 'url' and stores it in the folder 'sw_folder' if it is found and contains valid json
+        """
         if not os.path.exists(sw_folder):
             return False
         content = self.url_interactor.get_content_url(url)
@@ -452,6 +522,11 @@ class SWPostProcessor:
         return False
 
     def get_all_imports_importsfolder(self, imported_scripts_folder, url_local_file_linker):
+        """
+        Recursively scrapes the files in folder 'imported_scripts_folder' and links the urls to these locally saved files in 'url_local_file_linker'.
+        Only new content is stored. I.e. when a url is not yet scraped and its content is present in a local file then the 'url_local_file_linker'
+        points to that local file
+        """
         new_found_urls = set()
         failed_urls = self.file_interactor.load_object_exists("failed_urls_extra_imports") or set()
         imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker") or {}
@@ -516,6 +591,9 @@ class SWPostProcessor:
         return url_local_file_linker
 
     def get_importscripts_sources(self, path):
+        """
+        Gets the importscript arguments from a line of JS
+        """
         content = self.remove_js_comments(open(path, "r").read())
         try:
             import_urls = self.strip_function_arguments_from_content(content, "(", ")", "importscripts")
@@ -523,11 +601,13 @@ class SWPostProcessor:
             print("error stripping importscripts", e)
             print(content)
             exit(1)
-        # print("import urls", import_urls)
 
         return import_urls
     
     def filter_sw_importscripts(self, paths_set):
+        """
+        Filters the SWs with importscripts urls that can be scraped
+        """
         sw_paths_urls, sw_paths_no_urls = {}, set()
         for path in paths_set:
             importscript_strings_present = self.get_importscripts_sources(path)
@@ -557,8 +637,10 @@ class SWPostProcessor:
                 sw_paths_no_urls.add(path)
         return sw_paths_urls, sw_paths_no_urls
     
-    def sw_scrape_importscripts(self, sw_paths_urls):
-        imported_scripts_folder = os.getcwd() + "/SWs/imported_scripts/"
+    def sw_scrape_importscripts(self, sw_paths_urls, imported_scripts_folder):
+        """
+        Scrapes the importscripts urls and stores them locally
+        """
         url_local_file_linker = self.file_interactor.load_object_exists("url_local_file_linker") or {}
         failed_urls = self.file_interactor.load_object_exists("failed_urls") or {}
         for sw_path in sw_paths_urls:
@@ -595,18 +677,14 @@ class SWPostProcessor:
                                     failed_urls[sw_path] = set([url])
                                 continue
                             if True in ["!doctype" and "html" in x.lower() for x in content.split("\n")] or content.lower().strip().startswith("<"):
-                                # time.sleep(10)
                                 if sw_path in failed_urls:
                                     failed_urls[sw_path].add(url)
                                 else:
                                     failed_urls[sw_path] = set([url])
-                                # exit(0)
                                 continue
-                            # local_content_found = False
                             for file in files:
                                 if content == open(file, "r").read():
                                     local_content_found = True
-                                    # if sw_path in url_local_file_linker:
                                     url_local_file_linker[url] = file
                                     break
                             if not local_content_found:
@@ -623,17 +701,17 @@ class SWPostProcessor:
         return url_local_file_linker
 
     def get_sw_results(self, final_sw_paths, sw_paths_urls, sw_results_csv_file):
+        """
+        Gets the SW results
+        """
         if not os.path.exists(sw_results_csv_file):
             with open(sw_results_csv_file, "w") as f:
                 f.write("website;SWs count;size;events;loc;ccns\n")
 
-        # sw_paths_urls = file_interactor.load_object_exists("sw_paths_urls")
         imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker")
         url_local_file_linker = self.file_interactor.load_object_exists("url_local_file_linker")
         
         processed_sws = self.data_aggregator.get_col_csv(sw_results_csv_file, "website", strip_char='"')
-        # self.data_aggregator.filter_csv(sw_results_csv_file, "website")
-        # exit(0)
 
         for sw_domain_suffix in final_sw_paths:
             if sw_domain_suffix in processed_sws:
@@ -652,6 +730,9 @@ class SWPostProcessor:
             self.file_interactor.append_line(sw_results_csv_file, f'"{sw_domain_suffix}";"{SW_count}";"{size}";"{events}";"{loc}";"{ccns}"\n')
 
     def strip_function_arguments_from_content(self, line, start_char, end_char, function_name):
+        """
+        Strip arguments of function 'function_name' in string 'line' between 'start_char' and 'end_char'
+        """
         return_set = set()
         line = str(line)
         line = line.strip().lower()
@@ -701,6 +782,9 @@ class SWPostProcessor:
         return return_set
 
     def get_all_js(self, file_paths):
+        """
+        Gets all the js in file_paths and combines them
+        """
         all_js = ""
         for path in file_paths:
             if os.path.exists(path):
@@ -708,6 +792,9 @@ class SWPostProcessor:
         return jsbeautifier.beautify(all_js).strip()
 
     def check_manifest_homescreen(self, sw_source_folder):
+        """
+        Checks whether the sw in 'sw_source_folder' support add to home screen installation
+        """
         try:
             manifest_data = self.data_aggregator.get_features_manifest_json_from_file(os.path.join(sw_source_folder, "manifest.json"), return_json=True)
         except:
@@ -720,6 +807,9 @@ class SWPostProcessor:
         return False
 
     def extract_sw_features_wrapper(self, sw_paths_urls, url_local_file_linker, final_sw_paths):
+        """
+        Wrapper for extracting the features of all SWs in 'final_sw_paths'
+        """
         imported_scripts_linker = self.file_interactor.load_object_exists("imported_scripts_linker")
         for sw_domain_suffix in final_sw_paths:
             sw = final_sw_paths[sw_domain_suffix]
@@ -738,13 +828,15 @@ class SWPostProcessor:
                     json.dump(features, f)
 
     def get_sw_features_from_js(self, sw_source_folder, file_paths):
+        """
+        Gets the SW features from the JS source code of the SW
+        """
         all_js = ""
         for path in file_paths:
             all_js += open(path, "r").read() + "\n"
         all_js = self.remove_js_comments(all_js)
         all_js = all_js.lower()
 
-        # TODO verwijder silent push uit latex en voeg background task en fetch toe. maak hem hetzelfde als deze lijst iig
         features = {"Offline Capabilities": False, "Push Notifications": False, "Add to Home Screen": False, "Background Sync": False, "Navigation Preload": False,\
                     "Storage Estimation": False, "Persistent Storage": False, "Web Share": False, "Media Session": False, "Media Capabilities": False,\
                     "Device Memory": False, "Getting Installed Related Apps": False, "Payment Request": False, "Credential Management": False,\
@@ -793,6 +885,9 @@ class SWPostProcessor:
         return features
 
     def get_sw_metrics(self, paths, sw_base_folder, sw, subfolder=os.getcwd() + "/SWs/temp/"):
+        """
+        Gets all metrics related to SWs
+        """
         if not os.path.exists(subfolder):
             os.mkdir(subfolder)
         print("running sw loc for", paths, subfolder)
@@ -816,10 +911,8 @@ class SWPostProcessor:
         try:
             output = subprocess.check_output("lizard -l js " + temp_js_path, shell=True)
         except subprocess.CalledProcessError as exc:
-            # self.print_red("output error 1 " + output.decode()[:500])
             output = exc.output
             self.print_red("output error 2" + output.decode()[:500])
-            # exit(0)
 
         ccns = []
         for l in output.decode().split("\n"):
@@ -828,7 +921,7 @@ class SWPostProcessor:
                     ccns.append(l.split()[1])
 
         size = os.stat(temp_js_path).st_size
-        events = self.data_aggregator.get_file_events(all_js)
+        events = self.get_file_events(all_js)
 
         output = subprocess.check_output("ls " + "/".join(sw.split("/")[:-1]), shell=True)
         for l in output.decode().split("\n"):
@@ -839,6 +932,9 @@ class SWPostProcessor:
         return website, SW_count, size, events, loc, ccns
 
     def get_manifest_link_html(self, path, content=False):
+        """
+        Gets the manifest links from html content if 'content' and from the html content in 'path' otherwise
+        """
         if content:
             html = path
         else:
@@ -848,7 +944,6 @@ class SWPostProcessor:
             except:
                 with open(path, "r", encoding="utf8", errors="replace") as f:
                     html = f.read()
-                # print("errored", html)
                 return []
 
         links = []
@@ -857,24 +952,10 @@ class SWPostProcessor:
                 links.append(link['href'])
         return links
 
-    def get_manifests_sites(self, sw_base_folder, present=False):
-        missing = []
-        for subfolder, _, files in os.walk(sw_base_folder):
-            manifest_present = False
-            for file in files:
-                if "manifest.json" in file:
-                    if os.stat(os.path.join(subfolder, file)).st_size != 0:
-                        manifest_present = True
-                        break
-            if present and manifest_present:
-                splitted = subfolder.split("/")
-                missing.append(splitted[-1])
-            elif not present and not manifest_present:
-                splitted = subfolder.split("/")
-                missing.append(splitted[-1])
-        return missing
-
     def get_lighthouse_scores(self, score_file_path, failed=[]):
+        """
+        Gets the lighthouse scores stored in 'score_file_path' and extracts it
+        """
         if os.stat(score_file_path).st_size == 0:
             print("skippung")
             return
@@ -896,6 +977,9 @@ class SWPostProcessor:
         return failed, scores
 
     def get_ylt_scores(self, score_file_path, failed=[]):
+        """
+        Gets the yellowlabtools scores stored in 'score_file_path' and extracts it
+        """
         scores = []
         print(score_file_path)
         if score_file_path.endswith(".gz"):
@@ -942,6 +1026,9 @@ class SWPostProcessor:
             exit(0)
 
     def process_lighthouse_scores(self, lighthouse_folder, non_duplicate_sites, output_file, failed=set()):
+        """
+        Process the lighthouse scores and save them in an output CSV file
+        """
         extract = tldextract.TLDExtract()
         count = 0
         if not output_file:
@@ -963,17 +1050,11 @@ class SWPostProcessor:
                 if file_name.startswith("www."):
                     file_name = file_name[4:]
                 site = file_name.split(".json")[0]
-                # failed, scores = self.get_lighthouse_scores(os.path.join(lighthouse_folder, score_file), failed)
-                # if None in scores:
-                #     failed.append(score_file.split(".json")[0])
-                #     print("nones", score_file, scores)
-                #     continue
                 if site in handled or site not in non_duplicate_sites:
                     continue
                 failed, scores = self.get_lighthouse_scores(os.path.join(lighthouse_folder, score_file), failed)
                 if None in scores:
                     failed.add(score_file.split(".json")[0])
-                    # print("nones", score_file, scores)
                     continue
 
                 if score_file.split(".json")[0] in failed:
@@ -985,6 +1066,9 @@ class SWPostProcessor:
         return failed
 
     def process_yellowlabtools_scores(self, yellowlabtools_folder, non_duplicate_sites, output_file, failed=set([])):        
+        """
+        Process the yellowlabtools scores and save them in an output CSV file
+        """
         if not output_file:
             output_file = os.getcwd() + "/Scores/ylt_aggregated.csv"
         if not os.path.exists(output_file):
@@ -1018,3 +1102,45 @@ class SWPostProcessor:
                         f.write(site + ";" + ";".join([str(x) for x in scores]) + "\n")
                     handled.add(site)
         return failed
+
+    def strip_events(self, line):
+        """
+        Strip the SW events from string 'line'
+        """
+        events = []
+        event_start = 0
+        listener = "addeventlistener"
+        event_start = line.find(listener, event_start)
+        while True:
+            if event_start == -1:
+                break
+
+            event_start = event_start + len(listener) + 1
+
+            if event_start + 1 <= len(line):
+                event_end = line.find(line[event_start], event_start + 1)
+            else:
+                break
+            if line[event_start:event_end] and event_start + 1 != event_end:
+                events.append(line[event_start + 1:event_end])
+            
+            event_start = line.find(listener, event_start + 1)
+
+        return events
+
+    def get_file_events(self, file_content):
+        """
+        Get the SW events from 'file_content'
+        """
+        events = []
+        for l in file_content.split("\n"):
+            l = l.lower()
+            events_check = ["install", "activate", "message", "fetch", "sync", "push", "notificationclick", "notificationclose", "canmakepayment", "paymentrequest", "message", "messageerror"]
+            # for event_check in events_check:
+            if "addeventlistener" in l:
+                potential_events = self.strip_events(l)
+                for event in potential_events:
+                    if event in events_check:
+                        events.append(event)
+                    
+        return events

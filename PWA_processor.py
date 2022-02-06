@@ -1,5 +1,7 @@
-import gzip
-from site import addsitepackages
+"""
+The PWA post processor that performs all post processing related to the PWAs. This includes things as line of source code counting, filtering resources,
+
+"""
 from misc import Output, DataAggregator, FileInteractor
 import os
 import zipfile
@@ -14,82 +16,6 @@ class PWAPostProcessor:
         self.file_interactor = FileInteractor()
         self.data_aggregator = DataAggregator()
 
-    def get_valid_linked_webapp_paths(self, valid_linked_sw_sites, usb_sw_linker, correct_resources={}):
-        multiple_domain_sites = {"renault": "fr", "properati": "com.ar", "pinterest": "com", "serene-production-ezycommerce.ezyflight": "se", "michaelpage": "com",\
-                                    "tastemade": "com.br", "mini": "co.uk", "emerald.widgetbot": "io", "underarmour": "co.jp", "chrono24": "com", "edreams": "com",\
-                                    "europcar": "co.uk", "gogocarto": "fr", "clasf": "com.br", "ifood": "com.br", "eventbrite": "co.uk", "fashiola": "co.uk",\
-                                    "avrotros": "nl", "adidas": "co.id", "cuponation": "com.mx", "centrum": "cz", "michelin": "ru", "ebay": "com", "pizzahut": "com.tw",\
-                                    "uol": "com.br", "wego": "co.in", "airbnb": "com", "habitissimo": "es", "supercheapauto": "com.au", "autofun": "co.th",\
-                                    "clearly": "ca", "developers.google": "com", "cloud.google": "com", "wne32.csb" : "app", "firebase.google": "com", "netbet": "de"}
-        valid_linked_webapp_paths = self.file_interactor.load_object_exists("valid_linked_webapp_paths") or {}
-        valid_linked_webapp_paths = {}
-        if len(valid_linked_webapp_paths) == 0:
-            for resource in correct_resources:
-                print(correct_resources.index(resource) / len(correct_resources), end="\r")
-                found = False
-                for webapp_base_folder in self.webapp_base_folders:
-                    for webapp_file in os.listdir(webapp_base_folder):
-                        if found:
-                            break
-                        webapp_site = self.data_aggregator.string_usb_to_csv(webapp_file.split(" ")[0].split(".zip")[0])
-                        if resource in webapp_site:
-                            valid_linked_webapp_paths[resource] = os.path.join(webapp_base_folder, webapp_file)
-                            found = True
-                            break
-            return valid_linked_webapp_paths
-
-            for domain in valid_linked_sw_sites:
-                site = domain
-                suffix = valid_linked_sw_sites[domain]
-                if suffix:
-                    site += "." + suffix
-                usb_site = ""
-                for webapp_site in usb_sw_linker:
-                    if site == usb_sw_linker[webapp_site]:
-                        usb_site = usb_sw_linker[webapp_site]
-                        break
-                if site in valid_linked_webapp_paths or site not in correct_resources and usb_site not in correct_resources:
-                    found_resource = False
-                    for res in correct_resources:
-                        if res in site or res in usb_site:
-                            found_resource = True
-                            break
-                    #  and usb_site not in correct_resources):
-                    if not found_resource:
-                        print("skipping site", site, site in valid_linked_webapp_paths)
-
-                        continue
-                found = False
-                for usb_site in usb_sw_linker:
-                    if site == usb_sw_linker[usb_site]:
-                        for webapp_base_folder in self.webapp_base_folders:
-                            for webapp_file in os.listdir(webapp_base_folder):
-                                if found:
-                                    break
-                                webapp_site = self.data_aggregator.string_usb_to_csv(webapp_file.split(" ")[0].split(".zip")[0])
-                                if usb_site in webapp_site:
-                                    valid_linked_webapp_paths[site] = os.path.join(webapp_base_folder, webapp_file)
-                                    found = True
-                                    break
-                if not found:
-                    for webapp_base_folder in self.webapp_base_folders:
-                        for webapp_file in os.listdir(webapp_base_folder):
-                            if found:
-                                break
-                            webapp_site = self.data_aggregator.string_usb_to_csv(webapp_file.split(" ")[0].split(".zip")[0])
-                            if site in webapp_site:
-                                valid_linked_webapp_paths[site] = os.path.join(webapp_base_folder, webapp_file)
-                                found = True
-                                break
-                if not found:
-                    if suffix:
-                        print("webapp not found", "https://" + site)
-                    else:
-                        print("webapp not found", "https://" + site)
-            self.file_interactor.save_object(valid_linked_webapp_paths, "valid_linked_webapp_paths")
-
-        return valid_linked_webapp_paths
-
     def get_correct_resources(self, valid_sw_paths, webapp_url_linker={}):
         print("Checking local resources")
         incorrect_resources = set()
@@ -97,12 +23,8 @@ class PWAPostProcessor:
         no_content_sites = set()
         yes_index_mapping = self.file_interactor.load_object_exists("yes_index") or {}
         no_content_sites = self.file_interactor.load_object_exists("no_content_sites") or {}
-        # yes_index_mapping = {}
-
 
         for webapp_base_folder in self.webapp_base_folders:
-            # if len(yes_index_mapping):
-            #     break
             for subdir, _, files in os.walk(webapp_base_folder):
                 if subdir == webapp_base_folder:
                     for file in files:
@@ -117,44 +39,21 @@ class PWAPostProcessor:
                                 site = webapp_url_linker[site]
                             with zipfile.ZipFile(os.path.join(subdir, file), 'r') as zip_ref:
                                 for zfile in zip_ref.namelist():
-                                    # print(site, zfile)
                                     if site in zfile or original_file_site in zfile:
                                         if site not in yes_index_mapping and ".htm" in zfile:
-                                            #  and len(zfile.split("/")) == 2:
                                             content = ""
                                             try:
                                                 content = zip_ref.read(zfile).decode("utf-8")
                                             except:
-                                                # print("decode error 1", zfile, file)
                                                 try:
                                                     content = zip_ref.read(zfile).decode("utf-8-sig")
                                                 except:
-                                                    # print("decode error 2", zfile, file)
                                                     continue
-                                            # print(site, zfile, content[:30])
 
                                             if "<!doctype" in content.lower() or "<html" in content.lower():
                                                 if not "No Content: http" in content:
                                                     yes_index_mapping[site] = os.path.join(subdir, file)
                                                     break
-
-                                # if not site in yes_index_mapping:
-                                #     for zfile in zip_ref.namelist():
-                                #         if site in zfile or original_file_site in zfile:
-                                #             if ".htm" in zfile:
-                                #                 content = ""
-                                #                 try:
-                                #                     content = zip_ref.read(zfile).decode("utf-8")
-                                #                 except:
-                                #                     # print("decode error 1", zfile, file)
-                                #                     try:
-                                #                         content = zip_ref.read(zfile).decode("utf-8-sig")
-                                #                     except:
-                                #                         # print("decode error 2", zfile, file)
-                                #                         continue
-                                #                 if "No Content: " in content:
-                                #                     no_content_sites[site] = os.path.join(subdir, file)
-                                #                     break
 
         self.file_interactor.save_object(no_content_sites, "no_content_sites")
         self.file_interactor.save_object(yes_index_mapping, "yes_index_mapping")
@@ -193,26 +92,17 @@ class PWAPostProcessor:
         return yes_index_mapping, no_content_sites
     
     def get_webapp_results(self, final_webapp_paths, pwa_results_csv_file):
+        """
+        Get the results of the PWAs in 'final_webapp_paths'
+        """
         if not os.path.exists(pwa_results_csv_file):
             with open(pwa_results_csv_file, "w") as f:
                 f.write("website;size;html;css;js\n")
-        processed_pwas = self.data_aggregator.get_col_csv(pwa_results_csv_file, "website", sep=",")
+        processed_pwas = self.data_aggregator.get_col_csv(pwa_results_csv_file, "website", sep=";")
         lines = []
         with open(pwa_results_csv_file, "r") as f:
             for l in f:
                 lines.append(l)
-        first = True
-
-        # with open(pwa_results_csv_file + "minus_nocontent", "w") as f:
-        #     for l in lines:
-        #         if not first:
-        #             if l.split(",")[0] in final_webapp_paths:
-        #                 f.write(l)
-        #         else:
-        #             first = False
-        #             f.write(l)
-        # exit(0)
-        return
 
         print("Getting PWA results")
         for webapp in final_webapp_paths:
@@ -221,9 +111,12 @@ class PWAPostProcessor:
                     size, html_count, css_count, js_count, truth = self.get_pwa_metrics(final_webapp_paths[webapp], webapp)
                 else:
                     size, html_count, css_count, js_count, truth = self.get_pwa_metrics(final_webapp_paths[webapp], webapp, zipped=False)
-                self.file_interactor.append_line(pwa_results_csv_file, f'{webapp},{size},{html_count},{css_count},{js_count}\n')
+                self.file_interactor.append_line(pwa_results_csv_file, f'{webapp};{size};{html_count};{css_count};{js_count}\n')
 
     def get_pwa_metrics(self, path, webapp, zipped=True):
+        """
+        Get metrics related to PWAs
+        """
         temp_output_folder = "/home/jesse/Documents/temp_usb/b"
         subprocess.check_output("rm -rf " + temp_output_folder, shell=True)
         os.mkdir(temp_output_folder)
@@ -265,3 +158,133 @@ class PWAPostProcessor:
         subprocess.check_output("rm -rf " + temp_output_folder, shell=True)
         
         return size, html_count, css_count, js_count, True
+
+    def get_frameworks_wappalyzer(self, wappalyzer_folder, black_list, valid_websites):
+        """
+        Extracts the web frameworks from all wappalyzer output files in 'wappalyzer_folder'
+        """
+        total = {}
+
+        valid_websites = set(valid_websites)
+        for _, _, files in os.walk(wappalyzer_folder):
+            for file in files:
+                current_frameworks = []
+                with open(wappalyzer_folder + file, "r") as f:
+                    for l in f:
+                        if self.hasNumbers(l):
+                            continue
+                        l = l.strip()
+                        if not l or l in current_frameworks:
+                            continue
+                        if True in [x.lower() in l.lower() for x in black_list] or l.lower() in black_list:
+                            continue
+                        else:
+                            current_frameworks.append(l)
+                            if l in total:
+                                total[l] += 1
+                            else:
+                                total[l] = 1
+        return total
+
+    def hasNumbers(self, input_string):
+        """
+        Check whether 'input_string' contains digits
+        """
+        return any(char.isdigit() for char in input_string)
+
+    def get_frameworks_whatruns(self, whatruns_folders, valid_websites, black_list, total={}):
+        """
+        Extracts the web frameworks from whatruns files stored in 'whatruns_folder
+        """
+        count = 0
+
+        present = set()
+        handled_files = set()
+        number_whitelist = ["d3", "k2", "nvd3", "i18next"]
+       
+        valid_site_domains = self.file_interactor.load_object_exists("valid_site_domains") or {}
+        folder_rank = {}
+        for valid_site in valid_websites:
+            print("valid site", valid_site)
+            for whatruns_folder in whatruns_folders:
+                for _, _, files in os.walk(whatruns_folder):
+                    if valid_site in present:
+                        break
+                    
+                    for file in files:
+                        if valid_site in present:
+                            break
+                        if file in handled_files:
+                            continue
+                        if valid_site not in valid_site_domains:
+                            valid_site_ext = self.extract(valid_site)
+                            valid_site_domains[valid_site] = valid_site_ext
+                        else:
+                            valid_site_ext = valid_site_domains[valid_site]
+                        if valid_site not in self.string_usb_to_csv(file) and valid_site_ext.domain not in self.string_usb_to_csv(file):
+                            continue
+                        print("count", count, whatruns_folder, file)
+                        count += 1
+
+                        skip, temp = False, []
+                        site_present = False
+                        if os.stat(whatruns_folder + file).st_size > 2000:
+                            skip = True
+                        elif os.stat(whatruns_folder + file).st_size < 50:
+                            skip = True
+
+                        with open(whatruns_folder + file, "r") as f:
+                            site_check = file.split(".txt")[0]
+                            if "www." in site_check:
+                                site_check = site_check[4:]
+                            for l in f:
+                                l = l.strip()
+                                if site_check in l and "What runs" in l or valid_site_ext.domain in l and "What runs" in l:
+                                    site_present = file
+                                    continue
+                                elif "What runs ?" in l:
+                                    skip = True
+                                    break
+                                if l:
+                                    if "framework" in l.lower() or "library" in l.lower():
+                                        continue
+                                    if True not in [x.lower() in l.lower() for x in black_list]:
+                                        if self.hasNumbers(l):
+                                            if "jquery" in l.lower():
+                                                if not self.hasNumbers("".join(l.split(" ")[1:])):
+                                                    print("JQUERY", l)
+                                            l = l.split(" ")[0]
+                                            print("numbers", l)
+                                        temp.append(l)
+
+                        handled_files.add(file)
+                        if not skip and site_present:
+                            for l in temp:
+                                if "jQuery 3.3.1" in l or self.hasNumbers(l):
+                                    if l.lower() not in number_whitelist:
+                                        print("jquery found or numbers found", l, temp)
+                                        print(file, whatruns_folder)
+                                        exit(0)
+                                if l in total:
+                                    total[l] += 1
+                                else:
+                                    total[l] = 1
+                            if whatruns_folder in folder_rank:
+                                folder_rank[whatruns_folder] += 1
+                            else:
+                                folder_rank[whatruns_folder] = 1
+                            present.add(valid_site)
+
+        self.file_interactor.save_object(valid_site_domains, "valid_site_domains")
+        missing = 0
+        for valid_site in valid_websites:
+            if valid_site not in present:
+                missing += 1
+        print("Whatruns processed", count, "files")
+        print("missing whatruns", missing, len(present))
+        remaining_set = set(valid_websites)
+        remaining_set.difference_update(set(present))
+        print("remaining set", len(remaining_set), list(remaining_set)[:20])
+        print("wecare.gr" in remaining_set)
+        print("folder rank", folder_rank)
+        return total

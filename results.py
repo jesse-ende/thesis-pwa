@@ -677,7 +677,7 @@ if __name__ == "__main__":
         for l in f:
             pwa_blacklist.append(l.strip())
 
-    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csvminus_nocontent", sep=",")
+    wa_data = pd.read_csv(os.getcwd() + "/CSVs/final_pwa.csv", sep=",")
     # wa_data = wa_data[wa_data['website'].isin(filtered_sites)]
     # wa_data = wa_data.drop_duplicates(subset=['website'])
 
