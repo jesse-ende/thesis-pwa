@@ -5,6 +5,9 @@ node_modules/
 wappalyzer/
 /CSVs/*(copy).csv
 
+Web_apps/
+ohcount/
+
 unzipfail*
 unzipping *
 notes.txt
