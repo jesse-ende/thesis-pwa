@@ -1,8 +1,0 @@
-wecare.gr www.wecare.gr.txt
-wecare.gr www.wecare.gr.txt wecare gr
-Whatruns processed 9259 files
-missing whatruns 1419 7125
-remaining set 1419 ['4fstore.sk', 'wagstermagic.com', 'boldcare.in', 'thevegankindsupermarket.com', 'senetic.pl', 'morgenwirdes.de', 'emurgo.io', 'allaboutlifechallenges.org', 'theguidedbuyer.com', 'you-porn.com', 'folia-samochodowa.pl', 'tnhonline.com', 'wirtschaftsfoerderung-hannover.de', 'strivesacademy.com', 'afribobo.com', 'ufac4.com', 'rawconservativeopinions.com', 'cutlerhomes.com', 'kurogami.com', 'childrensmiraclenetworkhospitals.org']
-False
-folder rank {'/home/jesse/Documents/School/2/scriptie/thesis-pwa/whatruns_bb/': 3414, '/home/jesse/Documents/School/2/scriptie/thesis-pwa/whatruns_latest/': 1114, '/home/jesse/Documents/School/2/scriptie/thesis-pwa/whatruns_g/': 2597}
-

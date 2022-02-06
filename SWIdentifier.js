@@ -6,17 +6,11 @@ const { Cluster } = require('puppeteer-cluster');
 const axios = require("axios");
 const fs = require('fs');
 const os = require('os');
-const cpuCount = os.cpus().length
+var cpuCount = os.cpus();
+cpuCount = cpuCount.length;
 
-async function addUnreachableSite(unreachableSitesFolder, url) {
-    urlReplaced = url.replace(/\//g, "_")
-    urlReplaced = urlReplaced.substring(0,25)
-    if (fs.existsSync(unreachableSitesFolder + urlReplaced + ".txt")) {
-        console.log("unreachable site", url, "already exists");
-    } else {
-        fs.writeFileSync(unreachableSitesFolder + urlReplaced + ".txt", "");
-    }
-    return
+function noOp(){
+    return;
 }
 
 (async () => {    
@@ -36,16 +30,9 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
         
         // Set the output folders and create them if they do not exist
         var outputFolder = __dirname + "/SWs/emptySWs/"
-        var unreachableSitesFolder = __dirname + "/unreachable/"
         var swsFound = 0;
         if (!fs.existsSync(outputFolder)) {
             fs.mkdirSync(outputFolder);
-        }
-        if (!fs.existsSync(unreachableSitesFolder)) {
-            fs.mkdirSync(unreachableSitesFolder);
-        }
-        if (fs.existsSync(unreachableSitesFolder + ".txt")) {
-            fs.unlinkSync(unreachableSitesFolder + ".txt");
         }
 
         cluster.on('taskerror', (err, data, willRetry) => {
@@ -68,7 +55,6 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
                 else if (request.resourceType() === 'font') request.abort()            
                 else request.continue()
             })
-
             await page.on('response', async (res) => {
                 try {
                     if (res.securityDetails() != null) {
@@ -93,18 +79,16 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
             try {
                 const response = await Promise.race([
                     sleep(sleepOptions),
-                    await page.goto(url, {waitUntil: 'networkidle0', timeout: 30000 + 1000}).catch(e => (addUnreachableSite(unreachableSitesFolder, url))),
+                    await page.goto(url, {waitUntil: 'networkidle0', timeout: 30000 + 1000}).catch(e => noOp()),
                 ]);
                 clearTimeout(sleepOptions.timer);
                 const success = response !== LOAD_FAIL;
                 if (!success) {
-                    await addUnreachableSite(unreachableSitesFolder, url)
                     return
                 }
             }
             catch {
                 console.log(url, "crashed");
-                await addUnreachableSite(unreachableSitesFolder, url)
                 return
             }
 
@@ -147,7 +131,6 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
                 var index = await axios.get(url, {timeout: 30000});
             } catch {
                 console.log("Couldn't get index of", url);
-                await addUnreachableSite(unreachableSitesFolder, url)
             }
             if (index.data){
                 fs.writeFileSync(siteFolder + "/index.html", index.data, {encoding:'utf8',flag:'w'});
@@ -161,17 +144,19 @@ async function addUnreachableSite(unreachableSitesFolder, url) {
         // Load the URLs from the Tranco list 'top-1m.csv' CSV-file
         var urls = fs.readFileSync("./top-1m.csv", 'utf8' , (err) => {
             if (err) {
-                console.error(err)
+                console.error("error reading urls", err)
                 return
             }
         });
+
         urls = urls.split("\n");
 
         // Execute the cluster tasks with urls
-        for (var i = 0; i < urls.length; i++) {
-            console.log("urls i", urls[i], urls.length, i)
-            const url = urls[i].split(",")[1];
-            cluster.execute("https://" + url.replace("\r", ""));
+        for (var i = 0; i < urls.length; i++) {            
+            url = urls[i].split(",")[1];
+            if (url) {
+                cluster.execute("https://" + url.replace("\r", ""));
+            }
         }
             
         await cluster.idle();

@@ -47,12 +47,31 @@ if __name__ == "__main__":
     data_aggregator = DataAggregator()
     extract = tldextract.TLDExtract()
 
+    if len(sys.argv) == 2:
+        if sys.argv[1] == "help" or sys.argv[1] == "--help" or sys.argv[1] == "--h":
+            print("""
+    Run the program with the following arguments:
+
+    check resources: Filters the improper save all resources PWAs
+    scrape: Scrapes the missing files (such as indexes and manifests)
+    scrape imports: Scrape imports and additional imports if needed
+    score: Score the found domains with audit tools
+    count: Count the amount of index and manifest files
+    all: set all of the above arguments
+                  """)
+            exit(0)
     # Set parameters of the current run based on arguments
+    # Filters the improper save all resources PWAs
     check_resources = False
+    # Scrapes the missing files (such as indexes and manifests)
     scrape = False
+    # Scrape imports and additional imports if needed
     scrape_imports = False
+    # Score the found domains with audit tools
     score = False
+    # Count the amount of index and manifest files
     count = False
+    # Set all arguments to true
     if len(sys.argv) == 2 and sys.argv[1] == "all":
         check_resources = True
         scrape = True
@@ -212,8 +231,6 @@ if __name__ == "__main__":
         sw_post_processor.get_sw_results(final_sw_paths, sw_paths_urls, sw_csv_file)
     if not os.path.exists(pwa_csv_file):
         pwa_post_processor.get_webapp_results(correct_resources, pwa_csv_file)
-    
-    pwa_post_processor.get_webapp_results(correct_resources, pwa_csv_file)
 
     if not os.path.exists(manifest_csv_file) or not os.path.exists(features_csv_file):
         sw_post_processor.get_features_manifest_csvs(features_csv_file, manifest_csv_file, final_sw_paths)
