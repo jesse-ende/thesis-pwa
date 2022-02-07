@@ -242,14 +242,14 @@ if __name__ == "__main__":
         total = pwa_post_processor.get_frameworks_whatruns(whatruns_folders, correct_resources.keys(), frameworks_blacklist, total)
         file_interactor.save_object(total, "frameworks_total")
 
-    i = 1
-    while i != 21:
+    i = 0
+    while i != 20:
         if not total:
             break
         most_occurring = max(total.items(), key=operator.itemgetter(1))[0]       
         if True in [x.lower() in most_occurring.lower() for x in frameworks_blacklist]:
             del total[most_occurring]
             continue
-        print("Frameworks most frequent", i, "&", most_occurring, "&", total[most_occurring])
+        print("Frameworks most frequent", i + 1, "&", most_occurring, "&", total[most_occurring])
         del total[most_occurring]
         i += 1

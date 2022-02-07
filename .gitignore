@@ -40,7 +40,6 @@ js_interpreter_test.js
 languages_non_js_sws (copy).txt
 languages_non_js_sws.txt
 last_sws.txt
-local_vars/
 manifest_scraper.py
 missing_manifest.txt
 missing_manifests.txt
